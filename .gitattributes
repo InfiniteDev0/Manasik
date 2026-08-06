@@ -1,0 +1,41 @@
+# Normalize line endings.
+#
+# Without this, Git relies on each machine's `core.autocrlf` setting — which is
+# why `git add` printed a wall of "LF will be replaced by CRLF" warnings. Worse,
+# a teammate (or CI on Linux) with different settings can produce diffs where
+# every line changed and nothing actually did.
+#
+# `text=auto eol=lf` stores everything as LF in the repository and checks it out
+# as LF everywhere. Editors on Windows handle LF fine, and it matches what the
+# Linux CI runners and Docker images expect.
+* text=auto eol=lf
+
+# Files that must keep CRLF to work on Windows.
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf
+
+# Shell scripts and the Maven wrapper must stay LF or they won't execute.
+*.sh   text eol=lf
+mvnw   text eol=lf
+gradlew text eol=lf
+
+# Binary — never touch these, and never try to diff them as text.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.webp binary
+*.avif binary
+*.woff binary
+*.woff2 binary
+*.ttf  binary
+*.otf  binary
+*.eot  binary
+*.pdf  binary
+*.jar  binary
+*.zip  binary
+
+# Generated — collapse in PR diffs so reviews stay readable.
+pnpm-lock.yaml -diff linguist-generated
