@@ -52,7 +52,7 @@ export default function AuthPage() {
               priority
               className="mb-4 size-15"
             />
-            <h1 className="text-8xl font-light tracking-tight">Manasik</h1>
+            <h1 className="text-3xl font-light tracking-tight">Manasik</h1>
             <p className="mt-2 text-sm text-white/80">
               The operating system for Hajj &amp; Umrah agencies.
             </p>
