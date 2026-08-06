@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# A new push to the same branch cancels the previous run — no point burning
+# minutes on a commit that's already been superseded.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ───────────────────────────────────────────────────────────────────────────
+  # Frontend + shared packages
+  # ───────────────────────────────────────────────────────────────────────────
+  web:
+    name: Web & packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.10.0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # --frozen-lockfile makes CI fail if pnpm-lock.yaml is out of sync with
+      # the package.json files, rather than silently "fixing" it.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Format check
+        run: pnpm format:check
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Build
+        run: pnpm build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:4000/v1
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Spring Boot API
+  # ───────────────────────────────────────────────────────────────────────────
+  api:
+    name: API (Spring Boot)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # apps/api is empty until ROADMAP Phase 2. Until a pom.xml exists this
+      # job no-ops instead of failing the whole pipeline red.
+      - name: Check whether the API has been scaffolded
+        id: check
+        run: |
+          if [ -f apps/api/pom.xml ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::apps/api has no pom.xml yet — skipping. See ROADMAP Phase 2."
+          fi
+
+      - name: Set up JDK 17
+        if: steps.check.outputs.exists == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
+
+      # Called directly (not via the package.json shim) because here the OS is
+      # known to be Linux, so the committed wrapper pins the Maven version.
+      # See apps/api/README.md.
+      - name: Verify
+        if: steps.check.outputs.exists == 'true'
+        working-directory: apps/api
+        run: ./mvnw -B verify

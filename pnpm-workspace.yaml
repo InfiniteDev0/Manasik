@@ -1,0 +1,46 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# pnpm blocks dependency lifecycle (build) scripts by default. This is the
+# explicit allowlist — anything not listed here will NOT run its install
+# scripts. `next dev` writes `sharp`/`unrs-resolver` here itself; the rest we
+# opt into deliberately.
+allowBuilds:
+  sharp: false
+  unrs-resolver: false
+  "@tailwindcss/oxide": true
+  esbuild: true
+  # next-intl's compile-time message extractor runs on SWC.
+  "@swc/core": true
+  # Dev-server file watching.
+  "@parcel/watcher": true
+
+minimumReleaseAgeExclude:
+  - '@next/env@16.3.0'
+  - '@next/eslint-plugin-next@16.3.0'
+  - '@next/swc-darwin-arm64@16.3.0'
+  - '@next/swc-darwin-x64@16.3.0'
+  - '@next/swc-linux-arm64-gnu@16.3.0'
+  - '@next/swc-linux-arm64-musl@16.3.0'
+  - '@next/swc-linux-x64-gnu@16.3.0'
+  - '@next/swc-linux-x64-musl@16.3.0'
+  - '@next/swc-win32-arm64-msvc@16.3.0'
+  - '@next/swc-win32-x64-msvc@16.3.0'
+  - '@typescript-eslint/eslint-plugin@8.66.0'
+  - '@typescript-eslint/parser@8.66.0'
+  - '@typescript-eslint/project-service@8.66.0'
+  - '@typescript-eslint/scope-manager@8.66.0'
+  - '@typescript-eslint/tsconfig-utils@8.66.0'
+  - '@typescript-eslint/type-utils@8.66.0'
+  - '@typescript-eslint/types@8.66.0'
+  - '@typescript-eslint/typescript-estree@8.66.0'
+  - '@typescript-eslint/utils@8.66.0'
+  - '@typescript-eslint/visitor-keys@8.66.0'
+  - eslint-config-next@16.3.0
+  - icu-minify@4.13.5
+  - next-intl-swc-plugin-extractor@4.13.5
+  - next-intl@4.13.5
+  - next@16.3.0
+  - typescript-eslint@8.66.0
+  - use-intl@4.13.5

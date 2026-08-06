@@ -1,0 +1,57 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.*
+.yarn/*
+
+# builds
+.next/
+out/
+build/
+dist/
+target/
+
+# turborepo
+.turbo/
+
+# testing
+coverage/
+playwright-report/
+test-results/
+blob-report/
+.nyc_output/
+
+# env — never commit real secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# editors / OS
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# next.js
+next-env.d.ts
+.vercel/
+
+# typescript
+*.tsbuildinfo
+
+# java / maven (apps/api, later)
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
