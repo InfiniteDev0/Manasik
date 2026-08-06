@@ -2,7 +2,10 @@
   "$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
     "target": "ES2020",
-    "lib": ["ES2020"],
+    // DOM is included because these packages are consumed by the Next.js app
+    // and run in the browser. Without it, globals like `URL` (used in
+    // @manasik/utils) resolve to nothing.
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "CommonJS",
     "moduleResolution": "node",
     "ignoreDeprecations": "5.0",
@@ -18,7 +21,10 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "types": ["node"]
+    // Deliberately NOT `["node"]`. Only packages that actually touch Node
+    // globals should pull in @types/node, and they must declare it as their
+    // own devDependency — pnpm won't hoist it for them.
+    "types": []
   },
   "exclude": ["node_modules"]
 }

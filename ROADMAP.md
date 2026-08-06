@@ -96,7 +96,13 @@ Make the monorepo actually *be* Manasik's before writing a line of feature code.
 
 No code. Credentials and containers before anything can run.
 
-- [ ] **Docker Desktop** installed and running (in progress).
+> **Reordered 2026-08-06:** Docker is **not** needed to start. Phase 2 was rescoped so the Spring skeleton has no database dependency, which means Phases 0 and 2 run on Java + Maven alone. Infrastructure is only truly required at **Phase 3**. Do the Docker/WSL step whenever convenient before then.
+
+- [ ] **Docker Desktop** installed ✅ — but it needs **WSL2**, which isn't installed yet. One command in an *admin* PowerShell, then a reboot:
+  ```powershell
+  wsl --install
+  ```
+  Docker Desktop picks it up automatically afterward. **Blocks Phase 3, not Phase 2.**
 - [ ] `docker-compose.yml` at repo root — `postgres:17-alpine` (db `manasik`, port 5432) + `redis:7-alpine` (port 6379), both with named volumes.
 - [ ] **Resend** — account, verified sending domain, API key. Dev-mode override address so test mail can't reach real people.
 - [ ] **JWT secrets** — two independent 64-byte random strings:
@@ -111,20 +117,25 @@ No code. Credentials and containers before anything can run.
 
 ---
 
-## Phase 2 — Spring Boot skeleton
+## Phase 2 — Spring Boot skeleton *(no database — runs without Docker)*
+
+> **Rescoped 2026-08-06.** Originally this phase pulled in Data JPA + Flyway + Redis. That was wrong: with `spring-boot-starter-data-jpa` on the classpath and no reachable database, Spring Boot **fails at startup** on DataSource autoconfiguration — so the checkpoint could never pass without Docker running. Persistence deps now move to Phase 3, where the database actually exists. This phase boots on Java + Maven alone.
 
 - [ ] Scaffold `apps/api` — Spring Boot **4.1.0**, Java **17**, Maven wrapper (`mvnw` committed), group `com.manasik`, artifact `api`, base package `com.manasik.api`.
-- [ ] Dependencies: Web, Security, Data JPA, Validation, PostgreSQL driver, Flyway, Redis, Mail, Lombok, MapStruct, springdoc **3.1.0**, Actuator. Test: JUnit 5, Mockito, **Testcontainers** (Postgres).
+- [ ] Dependencies **this phase only**: Web, Security, Validation, Lombok, MapStruct, springdoc **3.1.0**, Actuator. Test: JUnit 5, Mockito.
+- [ ] Deferred to Phase 3 (they need a live database): Data JPA, PostgreSQL driver, Flyway, Redis, Mail, **Testcontainers**.
 - [ ] Package layout — **feature-first, not layer-first**:
   ```
   com.manasik.api
-    ├── common/        # exceptions, ApiResponse envelope, base entity, audit
-    ├── config/        # SecurityConfig, JpaConfig, RedisConfig, OpenApiConfig, CorsConfig
-    ├── tenancy/       # TenantContext, TenantFilter, CurrentTenantIdentifierResolver
-    ├── auth/          # controller, service, dto, jwt, security filters
-    ├── agency/        # the tenant entity itself
-    └── user/          # entity, repository, service
+    ├── common/        # exceptions, ApiResponse envelope, audit  [Phase 2]
+    ├── config/        # SecurityConfig, OpenApiConfig, CorsConfig [Phase 2]
+    │                  # JpaConfig, RedisConfig                    [Phase 3]
+    ├── tenancy/       # TenantContext, TenantFilter, resolver      [Phase 3]
+    ├── auth/          # controller, service, dto, jwt filters      [Phase 4]
+    ├── agency/        # the tenant entity itself                   [Phase 3]
+    └── user/          # entity, repository, service                [Phase 3]
   ```
+  Only the `[Phase 2]` directories get created now — the rest are shown so the shape is clear from the start.
 - [ ] `application.yml` + `application-dev.yml` + `application-prod.yml`. **No secrets in yaml** — env vars only.
 - [ ] Global exception handler (`@RestControllerAdvice`) returning a consistent error envelope, with Jakarta Validation field errors preserved for frontend forms.
 - [ ] Server port **4000**, context path **`/v1`**.
