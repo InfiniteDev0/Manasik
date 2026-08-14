@@ -3,12 +3,13 @@
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Loader } from 'lucide-react';
+import { toast } from 'sonner';
 import type { ComponentPropsWithoutRef, SubmitEvent } from 'react';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// UI SKELETON ONLY — submits nowhere. Wiring is ROADMAP Phase 6.
-// ─────────────────────────────────────────────────────────────────────────────
+import { ApiError } from '@/lib/api';
+import { authApi } from '@/lib/auth-api';
+import { useAuthStore } from '@/lib/store/auth.store';
 
 interface LoginFormProps extends Omit<ComponentPropsWithoutRef<'form'>, 'onSubmit'> {
   className?: string;
@@ -20,14 +21,41 @@ const inputClass =
   'h-12 w-full rounded-lg bg-muted px-4 text-[15px] text-foreground placeholder:text-muted-foreground/70 outline-none  transition focus-visible:ring-1 focus-visible:ring-ring';
 
 export function LoginForm({ className, onSwitchMode, ...props }: LoginFormProps) {
+  const router = useRouter();
+  const setSession = useAuthStore((state) => state.setSession);
+
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
+  async function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
-    // TODO(Phase 6): POST /v1/auth/login → access token in memory → redirect.
+    setIsLoading(true);
+
+    try {
+      const payload = await authApi.login({ email, password });
+      setSession(payload);
+
+      // The fork from the product spec: no workspace yet means the user has
+      // registered but never created an agency, so send them to onboarding
+      // rather than a dashboard that would have nothing to show.
+      router.push(payload.activeOrganizationId ? '/dashboard' : '/onboarding');
+    } catch (error) {
+      if (error instanceof ApiError) {
+        if (error.status === 400 && error.message.toLowerCase().includes('verify')) {
+          // Unverified account — route them to finish, don't just complain.
+          toast.error(error.message);
+          router.push(`/auth/verify-email?email=${encodeURIComponent(email)}`);
+          return;
+        }
+        toast.error(error.message);
+      } else {
+        toast.error('Could not reach the server. Check your connection.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (

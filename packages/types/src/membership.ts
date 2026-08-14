@@ -49,13 +49,15 @@ export interface Membership {
  * A membership with its organization inlined — what the workspace switcher
  * needs, so it can render names without a second request per organization.
  */
+// Mirrors AuthResponse.MembershipSummary in the API. `status` is absent
+// because the API only ever returns ACTIVE memberships here — an INVITED or
+// SUSPENDED one grants no access, so it has no place in a workspace switcher.
 export interface MembershipSummary {
   organizationId: string;
   organizationName: string;
   organizationSlug: string;
   logoUrl: string | null;
   role: Role;
-  status: MembershipStatus;
 }
 
 export interface InviteMemberInput {

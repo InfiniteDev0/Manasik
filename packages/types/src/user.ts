@@ -11,6 +11,9 @@ import type { Role, MembershipSummary } from './membership';
 // Timestamps are `string`, not `Date`: these describe JSON from the Spring API,
 // and Jackson serializes Instant/OffsetDateTime to ISO-8601 strings.
 
+// Mirrors AuthResponse.UserResponse in the API exactly. `updatedAt` is
+// deliberately absent — the API does not expose it, and declaring a field the
+// server never sends produces `undefined` at runtime with no type error.
 export interface User {
   id: string;
   fullName: string;
@@ -20,7 +23,6 @@ export interface User {
   locale: string;
   lastLoginAt: string | null;
   createdAt: string;
-  updatedAt: string;
 }
 
 /** Safe projection for showing other people (member lists, assignees). */

@@ -1,10 +1,14 @@
 'use client';
 
 import { cn } from '@/lib/utils';
-// NOTE: re-add `import { GoogleIcon } from '@/components/ui/google-icon'` and
-// `import Link from 'next/link'` when the OAuth button / terms notice below are
-// uncommented.
+// NOTE: re-add `import { GoogleIcon } from '@/components/ui/google-icon'` when
+// the OAuth button below is uncommented.
+import Link from 'next/link';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import { ApiError } from '@/lib/api';
+import { authApi } from '@/lib/auth-api';
 import { Eye, EyeOff, Loader } from 'lucide-react';
 import type { ComponentPropsWithoutRef, SubmitEvent } from 'react';
 
@@ -65,20 +69,33 @@ function calcStrength(p: string): { score: number; label: string; bars: number }
 
 const BAR_COLORS = ['bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-green-500'];
 
+interface FieldErrors {
+  fullName?: string;
+  email?: string;
+  password?: string;
+  confirmPassword?: string;
+}
+
 export function SignupForm({ className, onSwitchMode, ...props }: SignupFormProps) {
+  const router = useRouter();
+
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [acceptTerms, setAcceptTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading] = useState(false);
-  const [errors, setErrors] = useState<{ password?: string; confirmPassword?: string }>({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<FieldErrors>({});
 
   const strength = calcStrength(password);
 
-  function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
+  async function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     setErrors({});
 
+    // Client-side checks first — instant feedback, no round-trip. The API
+    // re-validates everything regardless; this is UX, not enforcement.
     if (password !== confirmPassword) {
       setErrors({ confirmPassword: 'Passwords do not match' });
       return;
@@ -91,7 +108,29 @@ export function SignupForm({ className, onSwitchMode, ...props }: SignupFormProp
       return;
     }
 
-    // TODO(Phase 6): POST /v1/auth/register → route to verify-email.
+    setIsLoading(true);
+    try {
+      await authApi.register({ fullName, email, password, acceptTerms: true });
+      // No session yet: the account is unverified and cannot log in until the
+      // emailed code is entered.
+      router.push(`/auth/verify-email?email=${encodeURIComponent(email)}`);
+    } catch (error) {
+      if (error instanceof ApiError) {
+        // Map the API's per-field messages onto the matching inputs rather
+        // than showing one generic banner.
+        if (error.fieldErrors) {
+          setErrors(error.fieldErrors as FieldErrors);
+        } else if (error.status === 409) {
+          setErrors({ email: 'An account with this email already exists' });
+        } else {
+          toast.error(error.message);
+        }
+      } else {
+        toast.error('Could not reach the server. Check your connection.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -101,10 +140,30 @@ export function SignupForm({ className, onSwitchMode, ...props }: SignupFormProp
       </h1>
 
       <div className="mt-8 space-y-4">
+        {/* Full name — required by the API and by the product spec */}
+        <div className="space-y-1.5">
+          <label htmlFor="signup-name" className="text-sm text-muted-foreground">
+            Full name
+          </label>
+          <input
+            id="signup-name"
+            name="fullName"
+            type="text"
+            required
+            autoComplete="name"
+            placeholder="Ahmed Mohamed"
+            className={inputClass}
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            disabled={isLoading}
+          />
+          {errors.fullName && <p className="text-xs text-destructive">{errors.fullName}</p>}
+        </div>
+
         {/* Email */}
         <div className="space-y-1.5">
           <label htmlFor="signup-email" className="text-sm text-muted-foreground">
-            Email
+            Work email
           </label>
           <input
             id="signup-email"
@@ -118,6 +177,7 @@ export function SignupForm({ className, onSwitchMode, ...props }: SignupFormProp
             onChange={(e) => setEmail(e.target.value)}
             disabled={isLoading}
           />
+          {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
         </div>
 
         {/* Password + strength meter */}
@@ -191,11 +251,35 @@ export function SignupForm({ className, onSwitchMode, ...props }: SignupFormProp
         </div>
       </div>
 
+      {/* Terms — the API rejects registration unless this is true */}
+      <label className="mt-5 flex cursor-pointer items-start gap-3 text-sm text-muted-foreground">
+        <input
+          type="checkbox"
+          checked={acceptTerms}
+          onChange={(e) => setAcceptTerms(e.target.checked)}
+          disabled={isLoading}
+          className="mt-0.5 size-4 shrink-0 rounded border-border accent-primary"
+        />
+        <span>
+          I agree to Manasik&apos;s{' '}
+          <Link href="/terms" className="text-foreground underline underline-offset-4">
+            Terms
+          </Link>{' '}
+          and{' '}
+          <Link href="/privacy" className="text-foreground underline underline-offset-4">
+            Privacy Policy
+          </Link>
+          .
+        </span>
+      </label>
+
       {/* Submit */}
       <button
         type="submit"
-        disabled={isLoading}
-        className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-primary text-[15px] font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
+        // Disabled until terms are accepted: the API would reject it anyway,
+        // and a rejected submit is a worse experience than an obvious blocker.
+        disabled={isLoading || !acceptTerms}
+        className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-primary text-[15px] font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
       >
         {isLoading ? (
           <>
