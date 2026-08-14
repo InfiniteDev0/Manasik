@@ -6,12 +6,22 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 public interface RefreshSessionRepository extends JpaRepository<RefreshSession, UUID> {
 
     Optional<RefreshSession> findByJti(UUID jti);
+
+    /**
+     * Every live session for a user.
+     *
+     * <p>Used when switching workspace, so the sessions point at the new
+     * organization — otherwise the next silent refresh would restore the
+     * previous one and the user would appear to switch back on their own.
+     */
+    List<RefreshSession> findAllByUserId(UUID userId);
 
     /**
      * Rotation: retire the presented token.

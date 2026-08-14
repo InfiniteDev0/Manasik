@@ -310,7 +310,28 @@ No code. Credentials and containers before anything can run.
 - **JWT claims** — `sub` (userId), `organizationId` (**nullable** — a new user has none), `role`, `jti`. `organizationId` drives `TenantContext`.
 - **Re-issue on switch** — changing workspace mints a new token pair. Never mutate the tenant server-side while leaving an old token valid, and never let the client pick a tenant per-request.
 
-**Checkpoint 4:** Full flow green in `apps/api/test/auth.http` — register → verify → login (0 memberships) → create workspace → me (1 membership) → refresh → switch → logout → me (401). Confirm rotation invalidates the old cookie and that the JTI actually disappears from Redis.
+**Checkpoint 4:** 🟡 **Core flow verified 2026-08-14** by live HTTP against Supabase. Remaining: forgot/reset password, invitations, rate limiting.
+
+| Step | Result |
+|---|---|
+| register | `201`, code emailed (dev: logged) |
+| register duplicate | `409` |
+| validation (weak password, bad email, terms) | `400` with per-field `fieldErrors` |
+| login before verifying | `400` "verify your email" |
+| login wrong password **vs** unknown email | **identical** `401` "Invalid email or password" |
+| verify wrong code / correct code | `400` / `200` + session |
+| `/auth/me` no token / valid token | `401` / `200` |
+| refresh rotation | old cookie `401`, **and the newly issued one too** — family revoked |
+| create workspace | `201`, OWNER membership, trial, new token with `organizationId` |
+| switch to own workspace | `200`, token reissued |
+| **switch to another agency's workspace** | **`404`** (not 403 — a 403 confirms the id exists) |
+
+**Four bugs found by running the flow. All compiled cleanly; none would have been caught by a type checker.**
+
+1. **`@Component` on a Spring Security filter.** Boot auto-registers every `Filter` bean into the servlet chain, which runs *before* Spring Security — so `SecurityContextHolderFilter` overwrote the authentication it had just set. Every request looked anonymous despite a valid token. Construct such filters directly in `SecurityConfig`; never expose them as beans.
+2. **Reuse detection was undone by its own transaction.** `deleteAllByUserId(...)` then `throw` inside `@Transactional` rolls the deletion back, so a *detected* stolen refresh token stayed valid. Fixed with `noRollbackFor`. The test that catches this is checking whether the **newly issued** cookie still works after a replay — not just that the replayed one fails.
+3. **RLS `WITH CHECK` blocks creating your first workspace.** `subscriptions` requires `organization_id = app_current_organization()` on INSERT, but a user creating their first workspace has no tenant — and `TenantAwareDataSource` stamps at *connection acquisition*, so setting `TenantContext` mid-transaction is too late. Needs **two transactions**: org + membership, then set the tenant, then the subscription on a fresh connection. Uses `TransactionTemplate` because self-invocation would bypass the proxy and silently merge them again.
+4. **`LazyInitializationException` on workspace switch.** `open-in-view: false` (correct) means a lazy `@ManyToOne` read outside a transaction throws. Fixed with `@EntityGraph`. Worth noting this is the setting working as intended — with `open-in-view: true` it would have "worked" while holding a database connection open through response rendering.
 
 ---
 

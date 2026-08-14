@@ -36,6 +36,11 @@ public interface MembershipRepository extends JpaRepository<Membership, UUID> {
      * — otherwise a user who was removed from an agency keeps access until
      * their token expires.
      */
+    // Fetches the organization in the same query. It is LAZY by default, and
+    // callers here read its name/slug outside any transaction — with
+    // `open-in-view: false` that is a LazyInitializationException, not a silent
+    // extra select.
+    @EntityGraph(attributePaths = "organization")
     @Query("""
             select m from Membership m
             where m.user.id = :userId
