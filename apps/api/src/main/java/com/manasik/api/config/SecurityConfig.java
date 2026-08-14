@@ -2,6 +2,8 @@ package com.manasik.api.config;
 
 import com.manasik.api.auth.JwtAuthenticationFilter;
 import com.manasik.api.auth.jwt.JwtService;
+import com.manasik.api.common.ratelimit.RateLimitFilter;
+import com.manasik.api.common.ratelimit.RateLimiter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -77,12 +79,15 @@ public class SecurityConfig {
 
     private final String allowedOrigins;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final RateLimitFilter rateLimitFilter;
     private final JsonAuthenticationEntryPoint jsonAuthenticationEntryPoint;
 
     public SecurityConfig(@Value("${manasik.cors.allowed-origins}") String allowedOrigins,
                           JwtService jwtService,
+                          RateLimiter rateLimiter,
                           JsonAuthenticationEntryPoint jsonAuthenticationEntryPoint) {
         this.allowedOrigins = allowedOrigins;
+        this.rateLimitFilter = new RateLimitFilter(rateLimiter);
         // Constructed here rather than injected as a bean ON PURPOSE. Any Filter
         // bean is auto-registered by Boot into the servlet chain, where it runs
         // before Spring Security — and SecurityContextHolderFilter then wipes the
@@ -128,7 +133,11 @@ public class SecurityConfig {
                 )
 
                 // Must run before authorization, or every request is anonymous.
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                // Ahead of the JWT filter: a rejected request should cost as
+                // little work as possible, and rate limiting must not be
+                // skippable by sending a malformed token.
+                .addFilterBefore(rateLimitFilter, JwtAuthenticationFilter.class);
 
         return http.build();
     }

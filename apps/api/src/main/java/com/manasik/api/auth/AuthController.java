@@ -1,8 +1,10 @@
 package com.manasik.api.auth;
 
 import com.manasik.api.auth.dto.AuthResponse;
+import com.manasik.api.auth.dto.EmailOnlyRequest;
 import com.manasik.api.auth.dto.LoginRequest;
 import com.manasik.api.auth.dto.RegisterRequest;
+import com.manasik.api.auth.dto.ResetPasswordRequest;
 import com.manasik.api.auth.dto.TokenPair;
 import com.manasik.api.auth.dto.VerifyEmailRequest;
 import com.manasik.api.common.ApiResponse;
@@ -140,6 +142,32 @@ public class AuthController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cleared.toString())
                 .body(ApiResponse.message("Logged out"));
+    }
+
+    @PostMapping("/resend-verification")
+    @SecurityRequirements
+    @Operation(summary = "Resend the verification code")
+    public ApiResponse<Void> resendVerification(@Valid @RequestBody EmailOnlyRequest request) {
+        authService.resendVerification(request.email());
+        return ApiResponse.message("If that account exists and is unverified, a new code has been sent.");
+    }
+
+    @PostMapping("/forgot-password")
+    @SecurityRequirements
+    @Operation(summary = "Request a password reset code",
+            description = "Always reports success — revealing whether an account exists would make this an enumeration oracle.")
+    public ApiResponse<Void> forgotPassword(@Valid @RequestBody EmailOnlyRequest request) {
+        authService.forgotPassword(request.email());
+        return ApiResponse.message("If that account exists, a reset code has been sent.");
+    }
+
+    @PostMapping("/reset-password")
+    @SecurityRequirements
+    @Operation(summary = "Set a new password using a reset code",
+            description = "Revokes every existing session, so a compromised account cannot retain access.")
+    public ApiResponse<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request.email(), request.code(), request.password());
+        return ApiResponse.message("Password updated. Please log in.");
     }
 
     @GetMapping("/me")

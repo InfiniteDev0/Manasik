@@ -264,6 +264,66 @@ public class AuthService {
         }
     }
 
+    /**
+     * Issues a fresh verification code.
+     *
+     * <p>Silent for unknown or already-verified addresses, for the same
+     * enumeration reason as {@link #forgotPassword}. Issuing a new code also
+     * invalidates the previous one, so pressing "resend" repeatedly does not
+     * leave a growing set of valid codes.
+     */
+    @Transactional
+    public void resendVerification(String rawEmail) {
+        userRepository.findByEmailIgnoreCase(normalizeEmail(rawEmail))
+                .filter(user -> !user.isEmailVerified())
+                .ifPresent(user -> issueOtp(user, OtpPurpose.VERIFY_EMAIL));
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Password recovery
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Emails a reset code — or silently does nothing if the address is unknown.
+     *
+     * <p><b>Always reports success.</b> Distinguishing "sent" from "no such
+     * account" would turn this into an account-existence oracle, and unlike
+     * registration there is no UX reason to: the user is told to check their
+     * inbox either way, which is exactly what they must do.
+     */
+    @Transactional
+    public void forgotPassword(String rawEmail) {
+        userRepository.findByEmailIgnoreCase(normalizeEmail(rawEmail))
+                .ifPresentOrElse(
+                        user -> issueOtp(user, OtpPurpose.RESET_PASSWORD),
+                        () -> log.debug("Password reset requested for unknown address; ignoring"));
+    }
+
+    /**
+     * Sets a new password and revokes every existing session.
+     *
+     * <p>The revocation is the point. If the reset was triggered because the
+     * account was compromised, leaving the attacker's sessions alive would make
+     * the reset cosmetic — they would keep access with the old refresh token
+     * regardless of the new password.
+     */
+    @Transactional
+    public void resetPassword(String rawEmail, String code, String newPassword) {
+        User user = userRepository.findByEmailIgnoreCase(normalizeEmail(rawEmail))
+                .orElseThrow(() -> new BadRequestException("Invalid or expired code"));
+
+        consumeOtp(user, OtpPurpose.RESET_PASSWORD, code);
+
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        // A user who can complete an email round-trip has demonstrably proved
+        // control of the address, so treat that as verification too.
+        user.setEmailVerified(true);
+        userRepository.save(user);
+
+        int revoked = refreshSessionRepository.deleteAllByUserId(user.getId());
+        log.info("Password reset for user {}; revoked {} session(s)", user.getId(), revoked);
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Current user
     // ─────────────────────────────────────────────────────────────────────────
