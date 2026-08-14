@@ -1,22 +1,21 @@
-import type { Role } from './agency';
+import type { Role, MembershipSummary } from './membership';
 
 // ─────────────────────────────────────────────
-// Models
+// User — a person, not a tenant
 // ─────────────────────────────────────────────
 //
-// Timestamps are `string`, not `Date`. These shapes describe what comes back
-// over JSON from the Spring API, and JSON has no Date type — Jackson serializes
-// Instant/OffsetDateTime to an ISO-8601 string. Parse at the edge if you need a
-// real Date.
+// Deliberately has NO organizationId. A user reaches organizations through
+// Membership, so this record stays valid whether they belong to zero agencies
+// (just registered) or several.
+//
+// Timestamps are `string`, not `Date`: these describe JSON from the Spring API,
+// and Jackson serializes Instant/OffsetDateTime to ISO-8601 strings.
 
 export interface User {
   id: string;
-  agencyId: string;
+  fullName: string;
   email: string;
-  name: string;
-  phone: string | null;
-  role: Role;
-  isVerified: boolean;
+  emailVerified: boolean;
   avatarUrl: string | null;
   locale: string;
   lastLoginAt: string | null;
@@ -24,41 +23,75 @@ export interface User {
   updatedAt: string;
 }
 
-// Safe projection for showing other people in the UI (member lists, assignees).
+/** Safe projection for showing other people (member lists, assignees). */
 export interface PublicUser {
   id: string;
-  name: string;
+  fullName: string;
   avatarUrl: string | null;
-  role: Role;
 }
 
 // ─────────────────────────────────────────────
-// Auth
+// Auth responses
 // ─────────────────────────────────────────────
 
-// What POST /v1/auth/login and /v1/auth/verify-email return.
-// The refresh token is delivered as an HttpOnly cookie and deliberately never
-// appears in a response body.
+/**
+ * POST /v1/auth/login.
+ *
+ * The refresh token is delivered as an HttpOnly cookie and never appears in a
+ * response body.
+ *
+ * `memberships` drives the post-login fork: empty means send them to
+ * /create-workspace; otherwise open the active one.
+ */
 export interface AuthResponse {
   accessToken: string;
   user: User;
+  memberships: MembershipSummary[];
+  /** null when the user has no organization yet. */
+  activeOrganizationId: string | null;
 }
 
 export interface MeResponse {
   user: User;
+  memberships: MembershipSummary[];
+  activeOrganizationId: string | null;
 }
 
 export interface RefreshResponse {
   accessToken: string;
 }
 
-// Decoded access-token claims. `agencyId` is what drives tenant isolation
-// server-side — the client must never send a tenant id of its own.
+/**
+ * Decoded access-token claims.
+ *
+ * `organizationId` is the ACTIVE organization and is what drives tenant
+ * isolation server-side. Switching workspace re-issues the token; the client
+ * never asserts a tenant on its own.
+ */
 export interface JwtPayload {
   sub: string;
-  agencyId: string;
-  role: Role;
+  organizationId: string | null;
+  role: Role | null;
   jti: string;
   iat?: number;
   exp?: number;
+}
+
+// ─────────────────────────────────────────────
+// Registration
+// ─────────────────────────────────────────────
+//
+// Deliberately minimal (per the v1 auth spec): a person creates an account,
+// then creates or joins a workspace as a separate step. No agency fields here.
+
+export interface RegisterInput {
+  fullName: string;
+  email: string;
+  password: string;
+  acceptTerms: true;
+}
+
+export interface LoginInput {
+  email: string;
+  password: string;
 }

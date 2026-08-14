@@ -1,22 +1,18 @@
 'use client';
 
 import { cn } from '@/lib/utils';
-import { GoogleIcon } from '@/components/ui/google-icon';
-import Link from 'next/link';
+// NOTE: re-add `import { GoogleIcon } from '@/components/ui/google-icon'` and
+// `import Link from 'next/link'` when the OAuth button / terms notice below are
+// uncommented.
 import { useState } from 'react';
-import { Loader } from 'lucide-react';
+import { Eye, EyeOff, Loader } from 'lucide-react';
 import type { ComponentPropsWithoutRef, SubmitEvent } from 'react';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // UI SKELETON ONLY — submits nowhere. Wiring is ROADMAP Phase 6.
 //
-// Email-first: signup collects only an email here. The password + strength
-// meter are preserved further down, commented out — see PASSWORD BLOCK.
-//
-// ⚠️ Note for Phase 4: an email-first signup implies the API sends a link or
-// code and the password is set afterwards. That is NOT what the backend plan
-// currently describes (register takes a password directly). Whichever way this
-// lands, the API and this form have to agree.
+// Collects email + password up front, which matches the backend plan
+// (POST /v1/auth/register takes a password directly).
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface SignupFormProps extends Omit<ComponentPropsWithoutRef<'form'>, 'onSubmit'> {
@@ -26,60 +22,74 @@ interface SignupFormProps extends Omit<ComponentPropsWithoutRef<'form'>, 'onSubm
 }
 
 const inputClass =
-  "h-12 w-full rounded-lg bg-muted px-4 text-[15px] text-foreground placeholder:text-muted-foreground/70 outline-none  transition focus-visible:ring-1 focus-visible:ring-ring";
+  'h-12 w-full rounded-lg bg-muted px-4 text-[15px] text-foreground placeholder:text-muted-foreground/70 outline-none transition focus-visible:ring-1 focus-visible:ring-ring';
 
-/* ─────────────────────────── PASSWORD BLOCK (disabled) ───────────────────────
- * Kept verbatim for when the flow needs a password again. To re-enable:
- *   1. uncomment calcStrength + BAR_COLORS below
- *   2. uncomment the password/confirm state and the JSX marked PASSWORD FIELDS
- *   3. re-add `Eye, EyeOff` to the lucide-react import above
- *
- * // 5 checks, mirroring `passwordSchema` in @manasik/validations.
- * function calcStrength(p: string): { score: number; label: string; bars: number } {
- *   if (!p) return { score: 0, label: '', bars: 0 };
- *   let score = 0;
- *   if (p.length >= 8) score++;
- *   if (/[A-Z]/.test(p)) score++;
- *   if (/[a-z]/.test(p)) score++;
- *   if (/[0-9]/.test(p)) score++;
- *   if (/[^A-Za-z0-9]/.test(p)) score++;
- *   switch (score) {
- *     case 5:  return { score, label: 'Very strong', bars: 4 };
- *     case 4:  return { score, label: 'Strong',      bars: 3 };
- *     case 3:  return { score, label: 'Fair',        bars: 2 };
- *     case 2:  return { score, label: 'Weak',        bars: 1 };
- *     case 1:  return { score, label: 'Too weak',    bars: 1 };
- *     default: return { score, label: 'Too weak',    bars: 0 };
- *   }
- * }
- *
- * const BAR_COLORS = ['bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-green-500'];
- * ───────────────────────────────────────────────────────────────────────────── */
+// 5 checks, mirroring `passwordSchema` in @manasik/validations. If that schema
+// changes, change this too — the API re-validates regardless, so a mismatch
+// here just means the meter lies to the user.
+function calcStrength(p: string): { score: number; label: string; bars: number } {
+  if (!p) {
+    return { score: 0, label: '', bars: 0 };
+  }
+  let score = 0;
+  if (p.length >= 8) {
+    score++;
+  }
+  if (/[A-Z]/.test(p)) {
+    score++;
+  }
+  if (/[a-z]/.test(p)) {
+    score++;
+  }
+  if (/[0-9]/.test(p)) {
+    score++;
+  }
+  if (/[^A-Za-z0-9]/.test(p)) {
+    score++;
+  }
+  switch (score) {
+    case 5:
+      return { score, label: 'Very strong', bars: 4 };
+    case 4:
+      return { score, label: 'Strong', bars: 3 };
+    case 3:
+      return { score, label: 'Fair', bars: 2 };
+    case 2:
+      return { score, label: 'Weak', bars: 1 };
+    case 1:
+      return { score, label: 'Too weak', bars: 1 };
+    default:
+      return { score, label: 'Too weak', bars: 0 };
+  }
+}
+
+const BAR_COLORS = ['bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-green-500'];
 
 export function SignupForm({ className, onSwitchMode, ...props }: SignupFormProps) {
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading] = useState(false);
+  const [errors, setErrors] = useState<{ password?: string; confirmPassword?: string }>({});
 
-  // const [password, setPassword] = useState('');
-  // const [confirmPassword, setConfirmPassword] = useState('');
-  // const [showPassword, setShowPassword] = useState(false);
-  // const [errors, setErrors] = useState<{ password?: string; confirmPassword?: string }>({});
-  // const strength = calcStrength(password);
+  const strength = calcStrength(password);
 
   function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
+    setErrors({});
 
-    // if (password !== confirmPassword) {
-    //   setErrors({ confirmPassword: 'Passwords do not match' });
-    //   return;
-    // }
-    // if (strength.score < 5) {
-    //   setErrors({
-    //     password:
-    //       'Password needs 8+ characters with uppercase, lowercase, number, and special character',
-    //   });
-    //   return;
-    // }
+    if (password !== confirmPassword) {
+      setErrors({ confirmPassword: 'Passwords do not match' });
+      return;
+    }
+    if (strength.score < 5) {
+      setErrors({
+        password:
+          'Password needs 8+ characters with uppercase, lowercase, number, and special character',
+      });
+      return;
+    }
 
     // TODO(Phase 6): POST /v1/auth/register → route to verify-email.
   }
@@ -110,7 +120,7 @@ export function SignupForm({ className, onSwitchMode, ...props }: SignupFormProp
           />
         </div>
 
-        {/* ───────────────────────── PASSWORD FIELDS (disabled) ─────────────────
+        {/* Password + strength meter */}
         <div className="space-y-1.5">
           <label htmlFor="signup-password" className="text-sm text-muted-foreground">
             Password
@@ -158,6 +168,7 @@ export function SignupForm({ className, onSwitchMode, ...props }: SignupFormProp
           {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
         </div>
 
+        {/* Confirm password */}
         <div className="space-y-1.5">
           <label htmlFor="signup-confirm" className="text-sm text-muted-foreground">
             Confirm password
@@ -178,7 +189,6 @@ export function SignupForm({ className, onSwitchMode, ...props }: SignupFormProp
             <p className="text-xs text-destructive">{errors.confirmPassword}</p>
           )}
         </div>
-        ──────────────────────────────────────────────────────────────────────── */}
       </div>
 
       {/* Submit */}
@@ -190,21 +200,21 @@ export function SignupForm({ className, onSwitchMode, ...props }: SignupFormProp
         {isLoading ? (
           <>
             <Loader className="animate-spin" size={16} />
-            Continuing...
+            Creating account...
           </>
         ) : (
-          'Continue with email'
+          'Create account'
         )}
       </button>
 
       {/* Divider */}
-      <div className="my-5 flex items-center gap-4">
+      {/* <div className="my-5 flex items-center gap-4">
         <span className="h-px flex-1 bg-border" />
         <span className="text-sm text-muted-foreground">or</span>
         <span className="h-px flex-1 bg-border" />
-      </div>
+      </div> */}
 
-      {/* Federated — inert until OAuth lands ("Later" in the tech stack). */}
+      {/* Federated — inert until OAuth lands ("Later" in the tech stack).
       <button
         type="button"
         disabled
@@ -212,10 +222,15 @@ export function SignupForm({ className, onSwitchMode, ...props }: SignupFormProp
       >
         <GoogleIcon className="size-4.5" />
         Continue with Google
-      </button>
+      </button> */}
+
+      {/* Terms notice hidden for vertical space. Re-enable before launch —
+          `acceptTerms` is a required field on registerSchema, and agreeing to
+          terms needs to be visible at the point of consent, not buried.
+          NOTE: re-add `import Link from 'next/link'` when restoring.
 
       <p className="mt-5 text-sm leading-relaxed text-muted-foreground">
-        By clicking &ldquo;Continue with email&rdquo; above, you acknowledge that you have
+        By clicking &ldquo;Create account&rdquo; above, you acknowledge that you have
         read, understood, and agree to Manasik&apos;s{' '}
         <Link href="/terms" className="text-foreground underline underline-offset-4">
           Terms &amp; Conditions
@@ -225,7 +240,7 @@ export function SignupForm({ className, onSwitchMode, ...props }: SignupFormProp
           Privacy Policy
         </Link>
         .
-      </p>
+      </p> */}
 
       <div className="mt-5 flex items-center justify-between gap-4">
         <span className="text-[15px] text-foreground">Already have an account?</span>

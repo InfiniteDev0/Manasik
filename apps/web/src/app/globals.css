@@ -50,6 +50,12 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+body{
+  box-sizing: border-box;
+  user-select: none;
+  scroll-behavior: smooth;
+}
+
 h1, h2 , h3, h4 , h5 , h6{
   font-family: 'Manrope';
 }

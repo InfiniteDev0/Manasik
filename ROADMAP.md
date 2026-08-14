@@ -23,9 +23,90 @@ These four were decided up front because they shape everything downstream. Treat
 | # | Decision | Choice | Why |
 |---|---|---|---|
 | **D1** | Schema ownership | **Flyway owns the schema.** `packages/database` (Prisma) is deleted. | Two migration tools cannot both own a database. Flyway SQL is the single source of truth; JPA entities map onto it. |
-| **D2** | Tenant isolation | **Shared schema + `agency_id` + Hibernate `@TenantId` + Postgres RLS.** | Hibernate auto-stamps writes and auto-filters reads from a request-scoped tenant context resolved from the **JWT** (never a client header). RLS is the database-level backstop so even hand-written SQL can't leak across agencies. |
+| **D2** | Tenant isolation | **Shared schema + `organization_id` + Hibernate `@TenantId` + Postgres RLS.** ⚠️ *Revised 2026-08-10 — see D5.* | Hibernate auto-stamps writes and auto-filters reads from a request-scoped tenant context resolved from the **JWT** (never a client header). RLS is the database-level backstop so even hand-written SQL can't leak across organizations. |
 | **D3** | Local infrastructure | **Docker Desktop** + `docker-compose` (Postgres 17, Redis 7). | Prod parity locally, and it unlocks **Testcontainers** for real-Postgres integration tests. |
 | **D4** | Frontend API types | **Generated from OpenAPI.** springdoc emits the spec from Java DTOs → `openapi-typescript` → `packages/types`. | Backend renames a field and the frontend fails to *compile* instead of failing in production. Zod schemas stay hand-written for form UX. |
+
+### D5 — User ≠ Organization (added 2026-08-10)
+
+**A user does not belong to an organization. A `Membership` joins the two.**
+
+```
+User ──< Membership >── Organization
+         (role lives here)
+```
+
+`users` has **no** `organization_id`. Ahmed can own *Baraka Travels* and simultaneously be a GUIDE at another agency; role is a property of the *relationship*, not the person.
+
+Consequences that ripple outward — none of these are optional once D5 holds:
+
+- **The JWT carries the *active* organization**, not "the user's organization". Claims are `sub`, `organizationId`, `role`, `jti`. Switching workspace re-issues the token. The client never asserts a tenant.
+- **`organizationId` is nullable on the token.** A freshly registered user has zero memberships. That's the fork after login: no membership → `/create-workspace`; otherwise open the active one.
+- **Registration creates a person, not an agency.** Full name, email, password, accept terms. The workspace is a separate step. (This replaces the earlier single-form "agency + owner in one transaction" design.)
+- **Every tenant-scoped table still carries `organization_id`** — D2 is unchanged in mechanism, only renamed. `TenantContext` is populated from the token's `organizationId`.
+- **Authorization is permission-based, never role-based.** Code asks `PILGRIM_CREATE`, not `role == 'GUIDE'`. Roles map to permission sets in one table; adding a role must not mean editing branches across the codebase.
+- Roles: `OWNER`, `ADMIN`, `OPERATIONS`, `SALES`, `FINANCE`, `GUIDE`, `SUPPORT`. (SALES is new.)
+
+**v1 auth is deliberately minimal:** email + password + email verification. No Google, Microsoft, OTP login, or passkeys — the product's complexity belongs in agency operations, not in signing in.
+
+```
+Register → Verify email → Login → has membership?
+                                    ├── no  → Create workspace → onboarding → dashboard
+                                    └── yes → dashboard
+```
+
+### D6 — Supabase specifics (added 2026-08-10, verified against the live project)
+
+**a) Everything lives in a `manasik` schema, never `public`.**
+Supabase runs PostgREST over `public` and serves it over HTTPS with the **anon key**, which is public by design and ships in frontend bundles. Our RLS-exempt tables (`users`, `otp_tokens`, `refresh_sessions`, …) would have been world-readable. A schema PostgREST doesn't know about is unreachable, with no dashboard toggle to undo it.
+
+**b) The runtime role must be `manasik_app`, not `postgres`.**
+Measured on this project:
+
+```
+postgres_bypassrls = true      postgres_superuser = false
+```
+
+`BYPASSRLS` overrides even `FORCE ROW LEVEL SECURITY`. While the app connected as `postgres`, the V2 policies filtered **nothing** — D2's database-level backstop was decorative. Hence two identities:
+
+| | Role | Rights |
+|---|---|---|
+| Flyway | `postgres` | owns tables, DDL, BYPASSRLS (fine here) |
+| Runtime | `manasik_app` | no ownership, no DDL, **NOBYPASSRLS** → RLS applies |
+
+`V3__app_role_grants.sql` grants the runtime privileges and **fails loudly** if `manasik_app` is missing, superuser, or holds `BYPASSRLS`. `ALTER DEFAULT PRIVILEGES` covers future tables — without it every new migration silently produces a table the app can't read.
+
+> This is why Checkpoint 3 requires a *raw JDBC* test. Reading the migration would have said "RLS enabled ✅" while it did nothing.
+
+**c) Changing a role's password on Supabase — the trap that cost several rounds.**
+This is **rejected**:
+
+```sql
+alter role manasik_app with password '...' nosuperuser nobypassrls;
+--                                          ^^^^^^^^^^^ 
+-- ERROR: permission denied to alter role
+-- DETAIL: Only roles with the SUPERUSER attribute may alter roles with the SUPERUSER attribute.
+```
+
+Only a superuser may *touch* the SUPERUSER attribute — **including setting it to `NO`** — and Supabase's `postgres` is not one. The error message reads as though the target role is a superuser; it isn't. Set attributes at `CREATE` time, and afterwards change only what you need:
+
+```sql
+alter role manasik_app with password '...';   -- works
+```
+
+**Confirmed working 2026-08-10:** Supavisor accepts custom roles using the `<role>.<project-ref>` username format (`manasik_app.xigfnnybmgwkvrjobmyq`), so the session pooler works for the non-superuser runtime role. That was the main unknown in this approach.
+
+### Boot 4 module split — the recurring trap (2026-08-10)
+
+Boot 4 broke `spring-boot-autoconfigure` into per-integration modules. Three hits in one session:
+
+| Symptom | Cause |
+|---|---|
+| `HibernatePropertiesCustomizer` won't import | moved to `org.springframework.boot.hibernate.autoconfigure` (`spring-boot-hibernate`) |
+| `server.error.*` deprecated | now `spring.web.error.*` |
+| **Flyway silently never ran** — no warning, app booted on an unmigrated DB | `FlywayAutoConfiguration` needs the **`spring-boot-flyway`** module; `flyway-core` alone is not enough |
+
+**Rule of thumb: in Boot 4, if an integration silently does nothing, suspect a missing `spring-boot-<thing>` dependency.**
 
 ### Version research (verified 2026-08-06)
 
@@ -140,7 +221,28 @@ No code. Credentials and containers before anything can run.
 - [ ] Global exception handler (`@RestControllerAdvice`) returning a consistent error envelope, with Jakarta Validation field errors preserved for frontend forms.
 - [ ] Server port **4000**, context path **`/v1`**.
 
-**Checkpoint 2:** `mvnw spring-boot:run` boots clean, `/v1/actuator/health` returns `UP`, Swagger UI loads.
+**Checkpoint 2:** ✅ **Confirmed 2026-08-10.** Boots on Spring Boot 4.1.0 / Spring 7.0.8 / Tomcat 11.0.22 / Java 17.0.16, port 4000, context path `/v1`.
+
+| Probe | Result |
+|---|---|
+| `/v1/actuator/health` | `200` — status `UP` |
+| `/v1/actuator/info` | `200` |
+| `/v1/api-docs` | `200` — OpenAPI 3.1.0, `bearerAuth` declared |
+| `/v1/swagger-ui.html` | `200` |
+| `/v1/anything` (no auth) | `403` — deny-by-default works |
+| `/v1/actuator/env` | `403` — not exposed |
+
+**Gotchas found during Phase 2 — don't rediscover these:**
+
+1. **Spring Initializr writes a version that doesn't exist.** The generated pom said `<version>4.1.0.RELEASE</version>`; the artifact on Maven Central is plain **`4.1.0`**. Maven then *caches the resolution failure*, so after fixing it you need `mvn -U` or it keeps failing. Also note `search.maven.org`'s index is stale (it tops out at 3.5.3) — trust `repo.maven.apache.org/.../maven-metadata.xml` instead.
+2. **Boot 4 renamed starters.** `spring-boot-starter-web` → **`spring-boot-starter-webmvc`**. Initializr also generates per-starter test artifacts (`spring-boot-starter-webmvc-test`, `-security-test`, …) — note `spring-boot-starter-test` still exists at 4.1.0, it just isn't what Initializr picks.
+4. **Boot 4 reorganized autoconfigure packages** *(hit 2026-08-10)*: `org.springframework.boot.autoconfigure.<x>` → **`org.springframework.boot.<x>.autoconfigure`**, split across new modules. `HibernatePropertiesCustomizer` moved from `org.springframework.boot.autoconfigure.orm.jpa` to `org.springframework.boot.hibernate.autoconfigure` in the `spring-boot-hibernate` module. **Every Boot 3 autoconfigure import will fail** — when one doesn't resolve, find its real home with `unzip -l` over the 4.1.0 jars rather than guessing.
+3. **MapStruct's "release" version is `1.7.0.Beta2`** — a beta. Pinned to **1.6.3**, the newest stable.
+
+**Two things deliberately left for Phase 4:**
+
+- ⚠️ **Unauthenticated requests return `403`, not `401`.** Spring Security's `AuthorizationFilter` denies the anonymous user before any authentication entry point runs, so `GlobalExceptionHandler`'s `AuthenticationException` branch is never reached. Fix is a custom `AuthenticationEntryPoint` returning 401 JSON — it belongs with the JWT filter, not before it.
+- ⚠️ **`UserDetailsServiceAutoConfiguration` is generating a random dev password** on every boot. Harmless today (form login and HTTP Basic are both disabled, so nothing can consume it), and it disappears the moment we register a real `UserDetailsService`.
 
 ---
 
@@ -148,30 +250,42 @@ No code. Credentials and containers before anything can run.
 
 **This is the phase where a mistake becomes a cross-agency data leak. Slow down here.**
 
-- [ ] `V1__initial_schema.sql` (Flyway):
-  - `agencies` — id (UUID), name, slug, country, city, address, logo_url, license_number, employee_count, pilgrims_per_year, timezone, currency, status, created_at, updated_at
-  - `users` — id, **agency_id**, email, password_hash, name, phone, role, is_verified, last_login_at, avatar_url, locale, timestamps. Unique on `(agency_id, email)`.
-  - `otp_tokens` — id, user_id, token_hash, purpose (VERIFY_EMAIL / RESET_PASSWORD), expires_at, used_at
-  - `refresh_sessions` — optional DB mirror of Redis JTIs for audit
-  - `audit_logs` — actor, agency_id, action, entity, entity_id, metadata (jsonb), ip, created_at
-  - Enums as Postgres types or check-constrained varchar. Roles: `OWNER`, `ADMIN`, `OPERATIONS`, `FINANCE`, `GUIDE`, `SUPPORT`.
-- [ ] `V2__row_level_security.sql` — enable RLS on every tenant-scoped table; policy `agency_id = current_setting('app.current_agency')::uuid`. **The app's DB role must not be the table owner** (owners bypass RLS by default).
+- [ ] `V1__initial_schema.sql` (Flyway) — **identity tables are NOT tenant-scoped** (D5):
+  - `users` — id (UUID), full_name, email **globally unique**, password_hash, email_verified, avatar_url, locale, last_login_at, timestamps. **No `organization_id`.**
+  - `organizations` — id, name, slug, logo_url, country, currency, timezone, organization_type, pilgrims_per_year, status, timestamps
+  - `memberships` — id, user_id, organization_id, role, status (`INVITED`/`ACTIVE`/`SUSPENDED`), invited_at, joined_at, timestamps. **Unique on `(user_id, organization_id)`.**
+  - `invitations` — id, organization_id, email, role, token_hash, expires_at, accepted_at. Covers inviting someone who has no account yet.
+  - `subscriptions` — id, organization_id, plan, status, trial_ends_at, current_period_ends_at
+  - `otp_tokens` — id, user_id, token_hash, purpose (`VERIFY_EMAIL`/`RESET_PASSWORD`), expires_at, used_at
+  - `audit_logs` — actor_user_id, organization_id, action, entity, entity_id, metadata (jsonb), ip, created_at
+  - Roles: `OWNER`, `ADMIN`, `OPERATIONS`, `SALES`, `FINANCE`, `GUIDE`, `SUPPORT`.
+- [ ] `V2__row_level_security.sql` — RLS on every **tenant-scoped** table; policy `organization_id = current_setting('app.current_organization')::uuid`.
+  - ⚠️ `users` is **exempt** — it's global, and a user with no membership must still be able to log in. Isolation for people comes from `memberships`, not from a column on `users`.
+  - **The app's DB role must not own the tables** — owners bypass RLS unless `FORCE ROW LEVEL SECURITY` is set.
 - [ ] `tenancy/TenantContext` — `ThreadLocal<UUID>`, cleared in a `finally` block. Non-negotiable: a leaked ThreadLocal on a pooled thread serves one agency's data to another.
 - [ ] `CurrentTenantIdentifierResolver` reads `TenantContext`; Hibernate configured `multiTenancy: DISCRIMINATOR`.
-- [ ] `@TenantId` on `agency_id` in every tenant-scoped entity.
-- [ ] A Hibernate connection-level hook that issues `SET LOCAL app.current_agency = ?` so RLS and Hibernate agree.
-- [ ] Tenant id comes **only** from the authenticated JWT claim. **Never** from a request header or body.
+- [ ] `@TenantId` on `organization_id` in every tenant-scoped entity (not on `User`, `Membership`, or `Invitation` — those are queried *across* tenants by design).
+- [ ] Hibernate connection hook issuing `SET LOCAL app.current_organization = ?` so RLS and Hibernate agree.
+- [ ] Tenant id comes **only** from the JWT's `organizationId` claim, and **only** after verifying the user has an `ACTIVE` membership for it. **Never** from a header or body.
 - [ ] `BaseEntity` with `@CreatedDate`/`@LastModifiedDate`/`@CreatedBy` via JPA auditing.
 
-**Checkpoint 3:** A Testcontainers integration test proves the leak is impossible — seed two agencies, authenticate as agency A, query users, assert agency B's rows are invisible. Then repeat with a **raw JDBC query** to prove RLS holds independently of Hibernate. **Both must pass.**
+**Checkpoint 3:** Testcontainers integration tests prove the leak is impossible:
+1. Seed two organizations; authenticate into org A; query a tenant-scoped table; assert org B's rows are invisible.
+2. Repeat with a **raw JDBC query** — proves RLS holds independently of Hibernate.
+3. **Membership-specific:** a user who is a member of A *and* B, holding a token for A, must not see B's data. This is the case a naive `organization_id` filter passes and a broken tenant-context implementation fails.
+
+**All three must pass.**
 
 ---
 
 ## Phase 4 — Auth backend
 
-- [ ] `POST /v1/auth/register` — **one transaction** creating `Agency` + `OWNER` user. BCrypt cost 12. User starts unverified, no tokens issued. Generates a 6-digit OTP via `SecureRandom`, stores it **hashed**, emails it via Resend.
-- [ ] `POST /v1/auth/verify-email` — validates OTP (checks the *latest* one so "already used" is a distinct error), marks verified, issues the token pair.
-- [ ] `POST /v1/auth/login` — **identical error message** for unknown-email and wrong-password (email-enumeration defence). Requires `is_verified`. Updates `last_login_at`.
+- [ ] `POST /v1/auth/register` — creates a **person only** (D5): full name, email, password, accept terms. **No organization.** BCrypt cost 12, user starts unverified, no tokens issued. 6-digit OTP via `SecureRandom`, stored **hashed**, emailed via Resend.
+- [ ] `POST /v1/auth/verify-email` — validates OTP (checks the *latest* one so "already used" is a distinct error), marks verified, issues the token pair with `organizationId: null`.
+- [ ] `POST /v1/auth/login` — **identical error message** for unknown-email and wrong-password (email-enumeration defence). Requires verified email. Updates `last_login_at`. Returns `memberships[]` + `activeOrganizationId` so the frontend knows whether to route to `/create-workspace` or the dashboard.
+- [ ] `POST /v1/organizations` — creates the workspace **and** an `OWNER` membership in one transaction, plus a TRIAL subscription. Re-issues the token with the new `organizationId`.
+- [ ] `POST /v1/auth/switch-organization` — verifies an `ACTIVE` membership for the target, then re-issues the token pair with the new `organizationId`/`role`. **This is the only way the active tenant changes.**
+- [ ] `POST /v1/organizations/{id}/invitations` + `POST /v1/invitations/accept` — invite by email with a role; accepting creates the `Membership`. Handles both "has an account" and "needs to set a password" paths.
 - [ ] `POST /v1/auth/refresh` — reads HttpOnly cookie. **Reuse detection**: if the JTI is missing from Redis, that token was already rotated — revoke *every* session for that user and log a security warning.
 - [ ] `POST /v1/auth/logout` — idempotent, deletes the JTI, clears the cookie.
 - [ ] `GET /v1/auth/me` — returns the safe user projection. `password_hash` must never appear in a DTO.
@@ -183,9 +297,10 @@ No code. Credentials and containers before anything can run.
 - **Access token** — 15m, signed with the ACCESS secret, returned in the JSON body, held in memory on the frontend (Zustand). Never a cookie, never `localStorage`.
 - **Refresh token** — 30d, REFRESH secret, `HttpOnly; Secure; SameSite=Lax`, path-scoped to `/v1/auth`. Fresh `jti` every issue.
 - **Redis** — `jti:{userId}:{jti}` → `1`, TTL = refresh expiry. Refresh is valid **only** if its JTI is present. Rotation deletes the old key and writes the new one, every single time.
-- **JWT claims** — `sub` (userId), `agencyId`, `role`, `jti`. `agencyId` in the token is what drives `TenantContext`.
+- **JWT claims** — `sub` (userId), `organizationId` (**nullable** — a new user has none), `role`, `jti`. `organizationId` drives `TenantContext`.
+- **Re-issue on switch** — changing workspace mints a new token pair. Never mutate the tenant server-side while leaving an old token valid, and never let the client pick a tenant per-request.
 
-**Checkpoint 4:** Full flow green in `apps/api/test/auth.http` — register → verify → me → refresh → me → logout → me (401). Confirm rotation invalidates the old cookie and that the JTI actually disappears from Redis.
+**Checkpoint 4:** Full flow green in `apps/api/test/auth.http` — register → verify → login (0 memberships) → create workspace → me (1 membership) → refresh → switch → logout → me (401). Confirm rotation invalidates the old cookie and that the JTI actually disappears from Redis.
 
 ---
 

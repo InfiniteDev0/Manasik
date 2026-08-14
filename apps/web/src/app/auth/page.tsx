@@ -93,7 +93,7 @@ export default function AuthPage() {
       <div className="hidden lg:grid lg:h-svh lg:grid-cols-2 lg:gap-2 lg:overflow-hidden lg:p-2">
         <div className="relative overflow-hidden rounded-lg">
           <Image
-            src="/authsideimage.jpg"
+            src="/kaabah.jpg"
             alt=""
             fill
             priority
