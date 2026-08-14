@@ -113,7 +113,7 @@ export default function AuthPage() {
           <div className="flex shrink-0 justify-end gap-2">
             <div className="flex items-center justify-between gap-2 font-medium">
               {/* <h1 className='md:text-2xl font-light'>Manasik</h1> */}
-              <img src="/mansiklogoblack.png" alt="" className="size-18 dark:invert" />
+              <img src="/mansiklogoblack.png" alt="" className="size-16 dark:invert" />
             </div>
           </div>
 

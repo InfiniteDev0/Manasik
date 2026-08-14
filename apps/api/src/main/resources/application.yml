@@ -112,6 +112,19 @@ springdoc:
     path: /api-docs
 
 manasik:
+  jwt:
+    # Two INDEPENDENT base64 secrets, each >= 32 bytes decoded. The app refuses
+    # to start if they are equal, missing, or too short — a weak or shared JWT
+    # key is not something to discover in production.
+    access-secret: ${JWT_ACCESS_SECRET}
+    refresh-secret: ${JWT_REFRESH_SECRET}
+    # Short-lived on purpose: an access token cannot be revoked, so its blast
+    # radius is bounded by its lifetime. Longevity comes from the refresh token,
+    # which CAN be revoked because it is backed by a refresh_sessions row.
+    access-ttl: 15m
+    refresh-ttl: 30d
+    issuer: manasik
+
   cors:
     # Comma-separated. Must be exact origins — a wildcard is incompatible with
     # `allowCredentials: true`, which we need for the refresh-token cookie.

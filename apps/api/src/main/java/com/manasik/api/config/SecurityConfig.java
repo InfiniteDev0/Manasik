@@ -1,5 +1,7 @@
 package com.manasik.api.config;
 
+import com.manasik.api.auth.JwtAuthenticationFilter;
+import com.manasik.api.auth.jwt.JwtService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,6 +13,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -50,10 +53,42 @@ public class SecurityConfig {
             "/api-docs/**",
     };
 
-    private final String allowedOrigins;
+    /**
+     * Auth endpoints reachable without a token — by definition, since these are
+     * how a caller obtains one.
+     *
+     * <p>Everything NOT listed here stays authenticated, including
+     * {@code /auth/me} and {@code /auth/logout}. Note {@code /auth/refresh} is
+     * public: it authenticates via the HttpOnly refresh cookie, not a bearer
+     * token, and is called precisely when the access token has expired.
+     *
+     * <p>These are unauthenticated, so they are the endpoints most exposed to
+     * abuse — rate limiting belongs here before launch.
+     */
+    private static final String[] AUTH_PATHS = {
+            "/auth/register",
+            "/auth/verify-email",
+            "/auth/resend-verification",
+            "/auth/login",
+            "/auth/refresh",
+            "/auth/forgot-password",
+            "/auth/reset-password",
+    };
 
-    public SecurityConfig(@Value("${manasik.cors.allowed-origins}") String allowedOrigins) {
+    private final String allowedOrigins;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final JsonAuthenticationEntryPoint jsonAuthenticationEntryPoint;
+
+    public SecurityConfig(@Value("${manasik.cors.allowed-origins}") String allowedOrigins,
+                          JwtService jwtService,
+                          JsonAuthenticationEntryPoint jsonAuthenticationEntryPoint) {
         this.allowedOrigins = allowedOrigins;
+        // Constructed here rather than injected as a bean ON PURPOSE. Any Filter
+        // bean is auto-registered by Boot into the servlet chain, where it runs
+        // before Spring Security — and SecurityContextHolderFilter then wipes the
+        // authentication it just set. See JwtAuthenticationFilter's javadoc.
+        this.jwtAuthenticationFilter = new JwtAuthenticationFilter(jwtService);
+        this.jsonAuthenticationEntryPoint = jsonAuthenticationEntryPoint;
     }
 
     @Bean
@@ -77,12 +112,23 @@ public class SecurityConfig {
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
 
+                // 401 for "who are you", 403 for "not allowed" — without this
+                // Spring answers 403 to unauthenticated calls, and the frontend
+                // never attempts a token refresh.
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(jsonAuthenticationEntryPoint)
+                        .accessDeniedHandler(jsonAuthenticationEntryPoint))
+
                 .authorizeHttpRequests(auth -> auth
                         // CORS preflight must never require credentials.
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(PUBLIC_PATHS).permitAll()
+                        .requestMatchers(AUTH_PATHS).permitAll()
                         .anyRequest().authenticated()
-                );
+                )
+
+                // Must run before authorization, or every request is anonymous.
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -61,8 +62,27 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Not authenticated. Kept deliberately vague — saying "no such user" versus
-     * "wrong password" is how email-enumeration attacks work.
+     * Bad credentials.
+     *
+     * <p>The message is passed through because every {@code BadCredentialsException}
+     * we raise carries a deliberately non-committal one ("Invalid email or
+     * password"), identical whether the account exists or the password was
+     * wrong. Surfacing it gives the user something actionable without telling
+     * an attacker which half failed.
+     */
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<ApiError> handleBadCredentials(
+            BadCredentialsException ex, HttpServletRequest request) {
+
+        log.debug("Bad credentials for {}", request.getRequestURI());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                ApiError.of(401, "Unauthorized", ex.getMessage(), request.getRequestURI())
+        );
+    }
+
+    /**
+     * Any other authentication failure. Kept vague — the message could come
+     * from Spring internals, and those are not written with disclosure in mind.
      */
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ApiError> handleAuthentication(

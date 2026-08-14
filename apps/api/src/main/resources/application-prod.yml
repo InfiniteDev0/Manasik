@@ -3,6 +3,12 @@ server:
   server-header:
   forward-headers-strategy: framework
 
+manasik:
+  cookie:
+    # HTTPS-only refresh cookie in production. Left false in dev so the cookie
+    # still works over http://localhost.
+    secure: true
+
 springdoc:
   swagger-ui:
     # Interactive API explorer stays off in production. The spec itself is also
