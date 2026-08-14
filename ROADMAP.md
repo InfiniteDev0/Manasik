@@ -269,12 +269,22 @@ No code. Credentials and containers before anything can run.
 - [ ] Tenant id comes **only** from the JWT's `organizationId` claim, and **only** after verifying the user has an `ACTIVE` membership for it. **Never** from a header or body.
 - [ ] `BaseEntity` with `@CreatedDate`/`@LastModifiedDate`/`@CreatedBy` via JPA auditing.
 
-**Checkpoint 3:** Testcontainers integration tests prove the leak is impossible:
-1. Seed two organizations; authenticate into org A; query a tenant-scoped table; assert org B's rows are invisible.
-2. Repeat with a **raw JDBC query** — proves RLS holds independently of Hibernate.
-3. **Membership-specific:** a user who is a member of A *and* B, holding a token for A, must not see B's data. This is the case a naive `organization_id` filter passes and a broken tenant-context implementation fails.
+**Checkpoint 3:** ✅ **Confirmed 2026-08-14.** `mvn verify` → `TenantIsolationIT`, **5/5 passing** against a real PostgreSQL 17 container.
 
-**All three must pass.**
+| Test | Proves |
+|---|---|
+| `hibernateFiltersToActiveTenant` | `@TenantId` scopes `findAll()` to org A without any explicit filter |
+| `noTenantSeesNothing` | a tenant-less context returns **zero** rows, not all rows — fails closed |
+| `rowLevelSecurityHoldsForRawSql` | **native SQL** through the app pool still only sees org A — RLS works independently of Hibernate |
+| `applicationRoleCannotBypassRls` | the runtime role holds neither `BYPASSRLS` nor `SUPERUSER` — guards the guard |
+| `dualMemberSeesOnlyActiveOrganization` | a member of **both** A and B, active in A, sees only A; switching to B flips it |
+
+**Why the container mirrors production exactly:** `testcontainer-init.sql` creates `manasik_app` with `NOBYPASSRLS` before Spring starts, and Flyway runs as the container superuser. Testing as the default superuser would have bypassed RLS entirely and every assertion would have passed for the wrong reason.
+
+**Two test-infrastructure traps hit:**
+1. **Surefire silently skips `*IT` classes** — that's Failsafe's convention. The build was green while the isolation tests never ran. Added `maven-failsafe-plugin` bound to `integration-test` + `verify`.
+2. **`@BeforeAll` runs before the Spring context**, so before Flyway migrates — seeding there fails with `relation does not exist`. Seed from `@BeforeEach` behind a `seeded` flag instead.
+3. Boot 4's BOM does **not** manage Testcontainers versions; import `testcontainers-bom` explicitly.
 
 ---
 
