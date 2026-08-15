@@ -39,8 +39,12 @@ export function LoginForm({ className, onSwitchMode, ...props }: LoginFormProps)
 
       // The fork from the product spec: no workspace yet means the user has
       // registered but never created an agency, so send them to onboarding
-      // rather than a dashboard that would have nothing to show.
-      router.push(payload.activeOrganizationId ? '/dashboard' : '/onboarding');
+      // rather than a workspace that would have nothing to show.
+      router.push(
+        payload.activeOrganizationId
+          ? `/workspace/${payload.activeOrganizationId}`
+          : '/onboarding',
+      );
     } catch (error) {
       if (error instanceof ApiError) {
         if (error.status === 400 && error.message.toLowerCase().includes('verify')) {

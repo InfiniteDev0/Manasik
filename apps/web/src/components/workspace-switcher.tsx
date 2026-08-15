@@ -76,8 +76,8 @@ export function WorkspaceSwitcher() {
           <DropdownMenuTrigger
             render={
               <SidebarMenuButton size="lg" className="bg-accent">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-sm bg-primary text-primary-foreground">
-                  <BuildingIcon className="size-4" />
+                <div className="flex aspect-square size-8 items-center justify-center rounded-sm bg-cyan-800 text-primary-foreground">
+                  <img src="/manasiklogowhite.png" className='size-6' alt="" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">

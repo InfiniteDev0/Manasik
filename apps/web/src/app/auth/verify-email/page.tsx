@@ -51,7 +51,11 @@ function VerifyEmailInner() {
       setSession(payload);
       // Verification issues a session, and a brand-new user has no workspace —
       // so this always lands on onboarding unless they were invited into one.
-      router.push(payload.activeOrganizationId ? '/dashboard' : '/onboarding');
+      router.push(
+        payload.activeOrganizationId
+          ? `/workspace/${payload.activeOrganizationId}`
+          : '/onboarding',
+      );
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Something went wrong. Try again.');
     } finally {

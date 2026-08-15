@@ -40,6 +40,7 @@ const COUNTRIES = [
 export default function OnboardingPage() {
   const router = useRouter();
   const setActiveOrganization = useAuthStore((state) => state.setActiveOrganization);
+  const setSession = useAuthStore((state) => state.setSession);
 
   const [name, setName] = useState('');
   const [countryCode, setCountryCode] = useState<string>('');
@@ -72,7 +73,20 @@ export default function OnboardingPage() {
       // The API reissues the token with the new organization; the old one
       // carries no tenant and cannot read any workspace data.
       setActiveOrganization(organization.id, organization.accessToken);
-      router.push('/dashboard');
+
+      // Refresh the session before navigating. `memberships` in the store is
+      // still empty at this point — it was loaded when the user had no
+      // workspace — and the workspace layout guards on it. Navigating first
+      // would bounce straight back here, in a loop.
+      const session = await authApi.me();
+      setSession({
+        user: session.user,
+        accessToken: organization.accessToken,
+        memberships: session.memberships,
+        activeOrganizationId: session.activeOrganizationId ?? organization.id,
+      });
+
+      router.push(`/workspace/${organization.id}`);
     } catch (error) {
       if (error instanceof ApiError) {
         if (error.fieldErrors) {
