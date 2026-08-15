@@ -55,7 +55,12 @@ export function NavUser({
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger
-            render={<SidebarMenuButton size="lg" className="aria-expanded:bg-muted" />}
+            render={
+              <SidebarMenuButton
+                size="lg"
+                className="cursor-pointer bg-black text-white hover:bg-zinc-950 hover:text-gray-500"
+              />
+            }
           >
             <Avatar>
               <AvatarImage
