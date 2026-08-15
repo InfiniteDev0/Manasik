@@ -56,6 +56,20 @@ public class Organization extends BaseEntity {
     @Column(name = "status", nullable = false, length = 20)
     private OrganizationStatus status = OrganizationStatus.ACTIVE;
 
+    /**
+     * Display copy of the subscription's plan.
+     *
+     * <p>Duplicated here because {@code subscriptions} is RLS-scoped to the
+     * active organization, so it cannot be read for the other workspaces in the
+     * switcher, nor at login before a tenant is set. See the V5 migration.
+     *
+     * <p>Whatever changes a subscription's plan must update this in the same
+     * transaction.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "plan", nullable = false, length = 20)
+    private SubscriptionPlan plan = SubscriptionPlan.TRIAL;
+
     public String getName() {
         return name;
     }
@@ -126,5 +140,13 @@ public class Organization extends BaseEntity {
 
     public void setStatus(OrganizationStatus status) {
         this.status = status;
+    }
+
+    public SubscriptionPlan getPlan() {
+        return plan;
+    }
+
+    public void setPlan(SubscriptionPlan plan) {
+        this.plan = plan;
     }
 }

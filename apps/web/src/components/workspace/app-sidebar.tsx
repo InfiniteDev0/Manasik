@@ -29,6 +29,7 @@ export function AppSidebar({ orgId, ...props }: AppSidebarProps) {
   const pathname = usePathname();
   const user = useAuthStore((state) => state.user);
   const memberships = useAuthStore((state) => state.memberships);
+  const isInitialized = useAuthStore((state) => state.isInitialized);
 
   const role = memberships.find((m) => m.organizationId === orgId)?.role ?? null;
   const base = workspaceBase(orgId);
@@ -36,8 +37,12 @@ export function AppSidebar({ orgId, ...props }: AppSidebarProps) {
   // Hide entries the role cannot use. This is presentation only — the API
   // enforces the real rule — but showing a link that only ever 403s is a worse
   // experience than not showing it.
+  //
+  // While the session is still restoring there is no role yet, so filtering is
+  // skipped: an empty sidebar that fills in reads far worse than a full one
+  // that trims. For OWNER and ADMIN — nearly every case — nothing is removed.
   const items = WORKSPACE_NAV_ITEMS.filter(
-    (item) => !item.permission || hasPermission(role, item.permission),
+    (item) => !item.permission || !isInitialized || hasPermission(role, item.permission),
   ).map((item) => ({ ...item, url: navItemUrl(base, item) }));
 
   return (

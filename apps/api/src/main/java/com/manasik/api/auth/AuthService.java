@@ -466,7 +466,8 @@ public class AuthService {
                 organization.getName(),
                 organization.getSlug(),
                 organization.getLogoUrl(),
-                membership.getRole());
+                membership.getRole(),
+                organization.getPlan());
     }
 
     private static AuthResponse.UserResponse toUserResponse(User user) {

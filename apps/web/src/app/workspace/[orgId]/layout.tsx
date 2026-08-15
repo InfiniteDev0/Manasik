@@ -5,8 +5,11 @@ import { useRouter } from 'next/navigation';
 import { AppSidebar } from '@/components/workspace/app-sidebar';
 import { LiveClock } from '@/components/workspace/live-clock';
 import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { WorkspaceBreadcrumb } from '@/features/workspace/workspace-breadcrumb';
+import { PlanBadge } from '@/features/workspace/plan-badge';
+import WorkspaceLoading from './loading';
 import { authApi } from '@/lib/auth-api';
 import { useAuthStore } from '@/lib/store/auth.store';
 
@@ -93,16 +96,14 @@ export default function WorkspaceLayout({
       .finally(() => setIsSwitching(false));
   }, [membership, activeOrganizationId, orgId, setActiveOrganization, router]);
 
-  const isReady = isInitialized && user && membership && activeOrganizationId === orgId;
+  const isReady = Boolean(
+    isInitialized && user && membership && activeOrganizationId === orgId && !isSwitching,
+  );
 
-  if (!isReady || isSwitching) {
-    return (
-      <div className="flex min-h-svh items-center justify-center bg-background">
-        <p className="text-sm text-muted-foreground">Loading workspace…</p>
-      </div>
-    );
-  }
-
+  // The shell is ALWAYS mounted. Replacing the whole page with a spinner while
+  // the session restores means a hard refresh blanks the sidebar and header and
+  // then pops them back — the chrome should stay put and only the content
+  // stream in, exactly as it does when navigating between sections.
   return (
     <SidebarProvider>
       <AppSidebar orgId={orgId} />
@@ -116,18 +117,34 @@ export default function WorkspaceLayout({
                 orientation="vertical"
                 className="mr-2 data-vertical:h-4 data-vertical:self-auto"
               />
-              <WorkspaceBreadcrumb orgId={orgId} orgName={membership.organizationName} />
+              {isReady && membership ? (
+                <WorkspaceBreadcrumb orgId={orgId} orgName={membership.organizationName} />
+              ) : (
+                <Skeleton className="h-4 w-32" />
+              )}
             </div>
 
             <div className="flex items-center gap-5">
               <LiveClock />
-              {/* Notification sheet goes here — deferred. */}
+
+              <div className="flex items-center gap-2">
+                {/* Rendered only once the plan is known — flashing "Upgrade to
+                    Pro" at a paying customer while the session loads is worse
+                    than showing nothing for a moment. */}
+                {isReady && membership && (
+                  <PlanBadge orgId={orgId} plan={membership.plan} />
+                )}
+                {/* Notification sheet goes here — needs a notifications table
+                    and endpoint first. */}
+              </div>
             </div>
           </div>
         </header>
 
         <div className="scrollbar-pill flex flex-1 flex-col gap-4 overflow-y-auto p-4 pb-28 md:pb-4">
-          {children}
+          {/* Same skeleton Next shows via loading.tsx between routes, so a hard
+              refresh and a section navigation look identical. */}
+          {isReady ? children : <WorkspaceLoading />}
         </div>
       </SidebarInset>
     </SidebarProvider>

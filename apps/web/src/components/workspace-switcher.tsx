@@ -43,6 +43,7 @@ export function WorkspaceSwitcher() {
   const active = memberships.find((m) => m.organizationId === activeOrganizationId);
   const others = memberships.filter((m) => m.organizationId !== activeOrganizationId);
 
+
   async function handleSwitch(organizationId: string) {
     if (organizationId === activeOrganizationId || switchingTo) {
       return;

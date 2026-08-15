@@ -5,6 +5,7 @@ import com.manasik.api.organization.OrganizationStatus;
 import com.manasik.api.organization.OrganizationType;
 import com.manasik.api.organization.PilgrimVolume;
 import com.manasik.api.organization.Role;
+import com.manasik.api.organization.SubscriptionPlan;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -31,6 +32,7 @@ public record OrganizationResponse(
         OrganizationType organizationType,
         PilgrimVolume pilgrimsPerYear,
         OrganizationStatus status,
+        SubscriptionPlan plan,
         Role role,
         String accessToken,
         Instant createdAt
@@ -48,6 +50,7 @@ public record OrganizationResponse(
                 organization.getOrganizationType(),
                 organization.getPilgrimsPerYear(),
                 organization.getStatus(),
+                organization.getPlan(),
                 role,
                 accessToken,
                 organization.getCreatedAt());

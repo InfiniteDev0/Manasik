@@ -1,3 +1,5 @@
+import type { SubscriptionPlan } from './organization';
+
 // ─────────────────────────────────────────────
 // Membership — the join between User and Organization
 // ─────────────────────────────────────────────
@@ -52,12 +54,17 @@ export interface Membership {
 // Mirrors AuthResponse.MembershipSummary in the API. `status` is absent
 // because the API only ever returns ACTIVE memberships here — an INVITED or
 // SUSPENDED one grants no access, so it has no place in a workspace switcher.
+//
+// `plan` comes from organizations.plan, not subscriptions: the latter is
+// RLS-scoped to the active organization and so is unreadable for the other
+// entries in this list.
 export interface MembershipSummary {
   organizationId: string;
   organizationName: string;
   organizationSlug: string;
   logoUrl: string | null;
   role: Role;
+  plan: SubscriptionPlan;
 }
 
 export interface InviteMemberInput {

@@ -1,6 +1,7 @@
 package com.manasik.api.auth.dto;
 
 import com.manasik.api.organization.Role;
+import com.manasik.api.organization.SubscriptionPlan;
 
 import java.time.Instant;
 import java.util.List;
@@ -37,13 +38,20 @@ public record AuthResponse(
     ) {
     }
 
-    /** One workspace in the switcher, with the organization inlined. */
+    /**
+     * One workspace in the switcher, with the organization inlined.
+     *
+     * <p>{@code plan} comes from {@code organizations.plan}, not from
+     * {@code subscriptions} — the latter is RLS-scoped to the active
+     * organization and so cannot be read for the other entries in this list.
+     */
     public record MembershipSummary(
             UUID organizationId,
             String organizationName,
             String organizationSlug,
             String logoUrl,
-            Role role
+            Role role,
+            SubscriptionPlan plan
     ) {
     }
 }
