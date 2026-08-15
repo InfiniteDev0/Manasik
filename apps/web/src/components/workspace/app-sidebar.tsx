@@ -60,6 +60,27 @@ export function AppSidebar({ orgId, ...props }: AppSidebarProps) {
               const active =
                 item.url === base ? pathname === base : pathname.startsWith(item.url);
 
+              // Parked features render as a disabled row rather than a link.
+              // Navigating to an empty page reads as a broken product; an
+              // honest "Soon" reads as a roadmap.
+              if (item.comingSoon) {
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      tooltip={`${item.title} — coming soon`}
+                      disabled
+                      className="mb-1 cursor-not-allowed text-muted-foreground/50"
+                    >
+                      <item.icon />
+                      <span>{item.title}</span>
+                      <span className="ml-auto rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground group-data-[collapsible=icon]:hidden">
+                        Soon
+                      </span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              }
+
               return (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton

@@ -77,15 +77,15 @@ export function WorkspaceSwitcher() {
           <DropdownMenuTrigger
             render={
               <SidebarMenuButton size="lg" className="bg-accent">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-sm bg-cyan-800 text-primary-foreground">
-                  <img src="/manasiklogowhite.png" className='size-6' alt="" />
+                <div className="text-primary-foreground flex aspect-square size-8 items-center justify-center rounded-sm bg-cyan-800">
+                  <img src="/manasiklogowhite.png" className="size-6" alt="" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">
-                    {active?.organizationName ?? 'No workspace'}
+                    {active?.organizationName ?? "No workspace"}
                   </span>
-                  <span className="truncate text-xs text-muted-foreground">
-                    {active ? titleCase(active.role) : 'Create one to get started'}
+                  <span className="text-muted-foreground truncate text-xs">
+                    {active ? titleCase(active.role) : "Create one to get started"}
                   </span>
                 </div>
                 <ChevronsUpDownIcon className="ml-auto size-4" />
@@ -97,12 +97,12 @@ export function WorkspaceSwitcher() {
             {/* Current workspace */}
             {active && (
               <div className="flex items-start gap-3 p-3">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <BuildingIcon className="size-5" />
+                <div className="bg-cyan-700 text-primary-foreground flex size-10 shrink-0 items-center justify-center rounded-lg">
+                  <img src="/manasiklogowhite.png" className="size-6" alt="" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{active.organizationName}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-muted-foreground text-xs">
                     {titleCase(active.role)} · {active.organizationSlug}
                   </p>
                 </div>
@@ -112,7 +112,7 @@ export function WorkspaceSwitcher() {
             <DropdownMenuSeparator className="my-0" />
 
             <DropdownMenuGroup>
-              <DropdownMenuLabel className="px-3 pt-2 text-xs font-medium text-muted-foreground">
+              <DropdownMenuLabel className="text-muted-foreground px-3 pt-2 text-xs font-medium">
                 Switch workspace
               </DropdownMenuLabel>
 
@@ -127,12 +127,10 @@ export function WorkspaceSwitcher() {
                     disabled={isSwitching}
                     onClick={() => handleSwitch(membership.organizationId)}
                   >
-                    <span className="flex size-6 items-center justify-center rounded-md bg-muted text-[10px] font-bold uppercase">
+                    <span className="bg-muted flex size-6 items-center justify-center rounded-md text-[10px] font-bold uppercase">
                       {membership.organizationName.charAt(0)}
                     </span>
-                    <span className="flex-1 truncate text-sm">
-                      {membership.organizationName}
-                    </span>
+                    <span className="flex-1 truncate text-sm">{membership.organizationName}</span>
                     {isSwitching ? (
                       <Loader className="size-4 animate-spin" />
                     ) : (
@@ -143,7 +141,7 @@ export function WorkspaceSwitcher() {
               })}
 
               {others.length === 0 && (
-                <p className="px-3 pb-1 text-xs text-muted-foreground">
+                <p className="text-muted-foreground px-3 pb-1 text-xs">
                   This is your only workspace.
                 </p>
               )}
@@ -152,8 +150,8 @@ export function WorkspaceSwitcher() {
             <div className="p-2">
               <button
                 type="button"
-                onClick={() => router.push('/onboarding')}
-                className="flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-border text-sm transition hover:bg-muted/60"
+                onClick={() => router.push("/onboarding")}
+                className="border-border hover:bg-muted/60 flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border text-sm transition"
               >
                 <PlusIcon className="size-4" />
                 New workspace
