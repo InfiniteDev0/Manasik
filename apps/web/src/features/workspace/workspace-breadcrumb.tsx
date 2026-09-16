@@ -10,17 +10,14 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import { WORKSPACE_NAV_ITEMS, navItemUrl, workspaceBase } from './nav-items';
+import { WORKSPACE_BASE, WORKSPACE_NAV_ITEMS, navItemUrl } from './nav-items';
 
-export function WorkspaceBreadcrumb({
-  orgId,
-  orgName,
-}: {
-  orgId: string;
-  orgName: string;
-}) {
+// The home entry names the root crumb, so the two can't drift apart.
+const HOME_TITLE = WORKSPACE_NAV_ITEMS.find((item) => !item.segment)?.title ?? 'Dashboard';
+
+export function WorkspaceBreadcrumb() {
   const pathname = usePathname();
-  const base = workspaceBase(orgId);
+  const base = WORKSPACE_BASE;
 
   // Longest segment first, so /pilgrims/new resolves to Pilgrims rather than
   // whichever entry happens to be declared earliest.
@@ -36,9 +33,9 @@ export function WorkspaceBreadcrumb({
       <BreadcrumbList>
         <BreadcrumbItem>
           {isHome ? (
-            <BreadcrumbPage className="text-sm font-medium">{orgName}</BreadcrumbPage>
+            <BreadcrumbPage className="text-sm font-medium">{HOME_TITLE}</BreadcrumbPage>
           ) : (
-            <BreadcrumbLink render={<Link href={base}>{orgName}</Link>} />
+            <BreadcrumbLink render={<Link href={base}>{HOME_TITLE}</Link>} />
           )}
         </BreadcrumbItem>
 

@@ -4,9 +4,7 @@ import type * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'motion/react';
-import { hasPermission } from '@manasik/types';
 import { NavUser } from '@/components/nav-user';
-import { WorkspaceSwitcher } from '@/components/workspace-switcher';
 import {
   Sidebar,
   SidebarContent,
@@ -18,37 +16,29 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from '@/components/ui/sidebar';
-import { WORKSPACE_NAV_ITEMS, navItemUrl, workspaceBase } from '@/features/workspace/nav-items';
-import { useAuthStore } from '@/lib/store/auth.store';
+import { useCurrentUser } from '@/features/auth/current-user';
+import { WORKSPACE_BASE, WORKSPACE_NAV_ITEMS, navItemUrl } from '@/features/workspace/nav-items';
 
-interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
-  orgId: string;
-}
-
-export function AppSidebar({ orgId, ...props }: AppSidebarProps) {
+export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
-  const user = useAuthStore((state) => state.user);
-  const memberships = useAuthStore((state) => state.memberships);
-  const isInitialized = useAuthStore((state) => state.isInitialized);
+  const user = useCurrentUser();
 
-  const role = memberships.find((m) => m.organizationId === orgId)?.role ?? null;
-  const base = workspaceBase(orgId);
-
-  // Hide entries the role cannot use. This is presentation only — the API
-  // enforces the real rule — but showing a link that only ever 403s is a worse
-  // experience than not showing it.
-  //
-  // While the session is still restoring there is no role yet, so filtering is
-  // skipped: an empty sidebar that fills in reads far worse than a full one
-  // that trims. For OWNER and ADMIN — nearly every case — nothing is removed.
-  const items = WORKSPACE_NAV_ITEMS.filter(
-    (item) => !item.permission || !isInitialized || hasPermission(role, item.permission),
-  ).map((item) => ({ ...item, url: navItemUrl(base, item) }));
+  const base = WORKSPACE_BASE;
+  const items = WORKSPACE_NAV_ITEMS.map((item) => ({ ...item, url: navItemUrl(base, item) }));
 
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <WorkspaceSwitcher />
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="lg" className="bg-accent" render={<Link href={base} />}>
+              <div className="text-primary-foreground flex aspect-square size-8 items-center justify-center rounded-sm bg-cyan-800">
+                <img src="/manasiklogowhite.png" className="size-6" alt="" />
+              </div>
+              <span className="truncate font-medium">Manasik</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarHeader>
 
       <SidebarContent>
@@ -112,13 +102,7 @@ export function AppSidebar({ orgId, ...props }: AppSidebarProps) {
       </SidebarContent>
 
       <SidebarFooter>
-        <NavUser
-          user={{
-            name: user?.fullName ?? '',
-            email: user?.email ?? '',
-            avatar: user?.avatarUrl ?? '',
-          }}
-        />
+        <NavUser user={{ name: user.fullName, email: user.email }} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

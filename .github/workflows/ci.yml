@@ -55,44 +55,7 @@ jobs:
       - name: Build
         run: pnpm build
         env:
-          NEXT_PUBLIC_API_URL: http://localhost:4000/v1
+          # Placeholders — the build never talks to Supabase; requests do.
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_placeholder
           NEXT_PUBLIC_SITE_URL: http://localhost:3000
-
-  # ───────────────────────────────────────────────────────────────────────────
-  # Spring Boot API
-  # ───────────────────────────────────────────────────────────────────────────
-  api:
-    name: API (Spring Boot)
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-
-    steps:
-      - uses: actions/checkout@v4
-
-      # apps/api is empty until ROADMAP Phase 2. Until a pom.xml exists this
-      # job no-ops instead of failing the whole pipeline red.
-      - name: Check whether the API has been scaffolded
-        id: check
-        run: |
-          if [ -f apps/api/pom.xml ]; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::apps/api has no pom.xml yet — skipping. See ROADMAP Phase 2."
-          fi
-
-      - name: Set up JDK 17
-        if: steps.check.outputs.exists == 'true'
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-          cache: maven
-
-      # Called directly (not via the package.json shim) because here the OS is
-      # known to be Linux, so the committed wrapper pins the Maven version.
-      # See apps/api/README.md.
-      - name: Verify
-        if: steps.check.outputs.exists == 'true'
-        working-directory: apps/api
-        run: ./mvnw -B verify

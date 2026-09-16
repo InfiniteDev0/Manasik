@@ -31,14 +31,15 @@ Create Package → Add Pilgrim → Create Booking → Track Documents & Payments
 
 Nothing below can be built well without these. Doing them first avoids rewriting eight pages.
 
-- [ ] **A1. Fix the fonts.** `@theme` maps `--font-heading` to `--font-sans` (Geist). Spec requires **Manrope** headings, **Outfit** body. Also remove the duplicate `@import url(fonts.googleapis.com/...)` at the top of `globals.css` — `next/font` already self-hosts both, and the CSS import adds a render-blocking request that defeats it.
-- [ ] **A2. Trim the sidebar** to the MVP eight: Dashboard, Pilgrims, Packages, Bookings, Groups, Payments, Documents, Settings. Hotels / Transport / Flights / Calendar / Staff become disabled "Coming soon" entries rather than links to empty pages.
-- [ ] **A3. Install the data grid** (`@diceui/data-grid` + sort/filter/view/row-height/skeleton/select-column). ⚠️ Its CLI does not rewrite import paths — `lib/data-grid.ts`, `hooks/use-data-grid.ts` and every `components/data-grid/*.tsx` need manual fixes to `@/lib/data-grid` and `@/types/data-grid`. Budget for that.
-- [ ] **A4. Mock data layer** — `src/mocks/`. One coherent dataset, not per-page fixtures: the whole point is that clicking a booking reaches a real pilgrim and a real invoice.
-- [ ] **A5. Domain types** in `@manasik/types`: `Package`, `Booking`, `Invoice`, `Payment`, `Document`, `Group`, `Guide`, `Activity`. `Pilgrim` already has a DB table (V4) — mirror it so the eventual wiring is a swap, not a rewrite.
-- [ ] **A6. Shared page primitives**: `PageHeader`, `StatCard`, `StatusBadge`, `EmptyState`, `DetailTabs`. Every page uses them; building them per-page guarantees drift.
-- [ ] **A7. Strings module.** Spec forbids hardcoded UI copy. Full `next-intl` is heavier than this stage needs — start with a typed `en` messages object behind a `t()` helper so the call sites are already correct when next-intl lands.
-- [ ] **A8. Money helper.** KES default, configurable. `balance_due` is **always** computed, never stored or typed (spec rule 5–6).
+- [~] **A1. Fix the fonts.** SKIPPED at your request. `@theme` maps `--font-heading` to `--font-sans` (Geist). Spec requires **Manrope** headings, **Outfit** body. Also remove the duplicate `@import url(fonts.googleapis.com/...)` at the top of `globals.css` — `next/font` already self-hosts both, and the CSS import adds a render-blocking request that defeats it.
+- [x] **A2. Trim the sidebar** to the MVP eight: Dashboard, Pilgrims, Packages, Bookings, Groups, Payments, Documents, Settings. Hotels / Transport / Flights / Calendar / Staff become disabled "Coming soon" entries rather than links to empty pages.
+- [x] **A3. List table.** DiceUI abandoned — it is Radix-based and this project is Base UI (32 type errors across 8 files). Replaced with `components/workspace/data-table.tsx`: TanStack Table v8 on the plain shadcn table, owning search, sorting, faceted filters, column visibility and pagination. Original text kept below for the record.
+  - ~~Install the data grid (`@diceui/data-grid`)~~ (`@diceui/data-grid` + sort/filter/view/row-height/skeleton/select-column). ⚠️ Its CLI does not rewrite import paths — `lib/data-grid.ts`, `hooks/use-data-grid.ts` and every `components/data-grid/*.tsx` need manual fixes to `@/lib/data-grid` and `@/types/data-grid`. Budget for that.
+- [x] **A4. Mock data layer** — `src/mocks/{data,queries,store}.ts`. `data` is one relational graph; `queries` joins and derives; `store` makes it mutable via `useSyncExternalStore` so create/edit persist across routes within a session. — `src/mocks/`. One coherent dataset, not per-page fixtures: the whole point is that clicking a booking reaches a real pilgrim and a real invoice.
+- [x] **A5. Domain types** — `packages/types/src/operations.ts`. in `@manasik/types`: `Package`, `Booking`, `Invoice`, `Payment`, `Document`, `Group`, `Guide`, `Activity`. `Pilgrim` already has a DB table (V4) — mirror it so the eventual wiring is a swap, not a rewrite.
+- [x] **A6. Shared page primitives** — plus `DetailField`/`DetailFieldGrid` and `DataTable`.: `PageHeader`, `StatCard`, `StatusBadge`, `EmptyState`, `DetailTabs`. Every page uses them; building them per-page guarantees drift.
+- [x] **A7. Strings module** — `src/lib/strings/`, typed dot-path keys, `statusLabel`/`enumLabel` for SCREAMING_SNAKE enums. Spec forbids hardcoded UI copy. Full `next-intl` is heavier than this stage needs — start with a typed `en` messages object behind a `t()` helper so the call sites are already correct when next-intl lands.
+- [x] **A8. Money + date helpers** — `lib/money.ts`, `lib/dates.ts`. **USD default** (changed from KES: Hajj/Umrah are quoted and settled in dollars), configurable. `balance_due` is **always** computed, never stored or typed (spec rule 5–6).
 
 ---
 
@@ -46,17 +47,23 @@ Nothing below can be built well without these. Doing them first avoids rewriting
 
 Spec order. Each is only done when its detail view and cross-links work — a list alone is half a page.
 
-| # | Page | Share of B | Why that weight |
-|---|---|---|---|
-| 1 | **Packages** | 8% | Simplest, and everything else references it. Good shakedown for the grid + form patterns. |
-| 2 | **Pilgrims** | 12% | List + 6-tab profile. |
-| 3 | **Bookings** | 14% | Multi-step creation flow, auto-invoice, the payment card. |
-| 4 | **Payments** | 14% | Invoice/payment split, four automatic statuses, record-payment modal. |
-| 5 | **Groups** | 12% | 7 tabs + readiness checks aggregating documents and payments. |
-| 6 | **Documents** | 8% | Mostly a filtered list over the shared checklist. |
-| 7 | **Dashboard** | 12% | Built last on purpose — it aggregates all six above. Building it first means inventing data twice. |
-| 8 | **Settings** | 8% | Sectioned form; several sections are "coming soon". |
-| — | Responsive + mobile table pattern | 12% | Spec calls it out explicitly. Retrofitting responsive tables is worse than building them once. |
+| # | Page | Share of B | Status | Built as |
+|---|---|---|---|---|
+| 1 | **Packages** | 8% | ✅ | List + detail (`?tab=` overview/bookings) + create/edit dialog. |
+| 2 | **Pilgrims** | 12% | ✅ | List + 4-tab profile (overview / bookings / documents / payments) + sectioned form. Medical and access needs sit above the tabs, not inside one. |
+| 3 | **Bookings** | 14% | ✅ | List + detail with blockers panel, payment progress and inline payment history. Creating a booking creates its invoice in the same call. |
+| 4 | **Payments** | 14% | ✅ | Invoices / payments as two tabs — they answer opposite questions. All four statuses derived. |
+| 5 | **Groups** | 12% | ✅ | Cards, not a table. Detail has members / logistics / readiness, plus an assign dialog restricted to same-package unassigned bookings. |
+| 6 | **Documents** | 8% | ✅ | A per-pilgrim **matrix** rather than a document list: the question is "who is missing what". Rows expand to the shared checklist. |
+| 7 | **Dashboard** | 12% | ✅ | Ordered by urgency, not by entity. Every card links to its filtered page. |
+| 8 | **Settings** | 8% | ✅ | Organisation form (local-only, labelled as such) + read-only members and billing from the real session. |
+| — | Responsive + mobile table pattern | 12% | ✅ | Every table scrolls inside its own container; toolbars, stat grids and page headers stack at `sm`. |
+
+**Deviations from the spec, deliberate:**
+
+- Pilgrim profile has 4 tabs, not 6. The spec's "notes" and "activity" tabs have no data source that is not already on the page.
+- Group detail has 3 tabs, not 7. Hotels / transport / flights are free-text notes in the MVP — there is no inventory to tab between, and four near-empty tabs read as unfinished.
+- Documents is a matrix, not a filtered list. A list answers "what documents exist", which nobody asks.
 
 ### Rules that apply to every page
 

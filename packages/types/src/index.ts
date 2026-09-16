@@ -1,20 +1,9 @@
-export type * from './organization';
-export type * from './membership';
-export type * from './user';
-export type * from './permission';
-
-// Runtime values (not just types) need a value export.
-export { ROLES, INVITABLE_ROLES } from './membership';
-export {
-  ROLE_PERMISSIONS,
-  hasPermission,
-  hasAnyPermission,
-  hasAllPermissions,
-} from './permission';
+export type * from './operations';
 
 // ─────────────────────────────────────────────
-// NOTE (ROADMAP D4)
+// NOTE
 // ─────────────────────────────────────────────
-// Hand-written for now. From Phase 5 these are generated from the Spring API's
-// OpenAPI spec (`pnpm gen:api-types`), so a backend field rename becomes a
-// compile error here instead of a runtime bug in the browser.
+// Hand-written for now, describing the mock data layer in apps/web. Once the
+// Supabase tables exist, generate the database types into this package
+// (`supabase gen types typescript`) so a column rename becomes a compile error
+// instead of a runtime bug.

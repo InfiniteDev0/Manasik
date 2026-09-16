@@ -7,8 +7,8 @@
     "declarationMap": true,
     "composite": false,
     "noEmit": false,
-    // This package reads `process.env` in src/env/web.ts, so it needs the Node
-    // globals. @types/node is a devDependency here.
+    // Node globals for the eslint presets and any config that reads
+    // `process.env`. @types/node is a devDependency here.
     "types": ["node"]
   },
   "include": ["src/**/*"],

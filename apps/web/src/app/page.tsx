@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 
-// No landing page by design (ROADMAP rule 3) — `/` goes straight to auth.
-// When i18n lands in Phase 5 this becomes a locale-aware redirect.
+// No landing page by design: `/` always opens the login page. With auth on,
+// proxy.ts forwards an already-signed-in visitor from /auth to /workspace.
 export default function Home() {
   redirect('/auth');
 }

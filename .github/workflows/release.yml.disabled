@@ -127,16 +127,3 @@ jobs:
               }
             });
 
-      - name: Trigger API deployment
-        uses: actions/github-script@v7
-        with:
-          script: |
-            await github.rest.actions.createWorkflowDispatch({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: 'deploy-api.yml',
-              ref: 'main',
-              inputs: {
-                environment: 'production'
-              }
-            });

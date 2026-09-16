@@ -20,10 +20,9 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { ChevronsUpDownIcon, SparklesIcon, BadgeCheckIcon, CreditCardIcon, BellIcon, LogOutIcon } from "lucide-react"
-import { useRouter } from "next/navigation"
-import { authApi } from "@/lib/auth-api"
-import { useAuthStore } from "@/lib/store/auth.store"
+import { ChevronsUpDownIcon, BadgeCheckIcon, BellIcon, LogOutIcon } from "lucide-react"
+import { useTransition } from "react"
+import { signOut } from "@/features/auth/actions"
 
 export function NavUser({
   user,
@@ -31,23 +30,15 @@ export function NavUser({
   user: {
     name: string
     email: string
-    avatar: string
   }
 }) {
   const { isMobile } = useSidebar()
-  const router = useRouter()
-  const clear = useAuthStore((state) => state.clear)
+  const [isSigningOut, startSignOut] = useTransition()
 
-  async function handleLogout() {
-    try {
-      await authApi.logout()
-    } finally {
-      // Clear locally even if the call failed. The user asked to leave, and
-      // leaving them looking logged-in because the network blipped is worse
-      // than a server-side session that expires on its own.
-      clear()
-      router.replace("/auth")
-    }
+  // The action clears the HttpOnly session cookies on the server and
+  // redirects to /auth — there is no client-side session to tidy up.
+  function handleLogout() {
+    startSignOut(() => signOut())
   }
 
   return (
@@ -103,19 +94,8 @@ export function NavUser({
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem>
-                <SparklesIcon />
-                Upgrade to Pro
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem>
                 <BadgeCheckIcon />
                 Account
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <CreditCardIcon />
-                Billing
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <BellIcon />
@@ -123,7 +103,7 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout}>
+            <DropdownMenuItem onClick={handleLogout} disabled={isSigningOut}>
               <LogOutIcon />
               Log out
             </DropdownMenuItem>

@@ -3,7 +3,6 @@ import { Manrope, Outfit, Geist } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
 import { cn } from "@/lib/utils";
-import { AuthProvider } from "@/components/providers/auth-provider";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -19,7 +18,7 @@ const manrope = Manrope({
 
 export const metadata: Metadata = {
   title: "Manasik",
-  description: "The operating system for Hajj & Umrah agencies.",
+  description: "The operating system for travel agencies.",
 };
 
 // Typed explicitly rather than with Next's generated `LayoutProps<"/">`: that
@@ -34,12 +33,7 @@ export default function RootLayout({
       className={cn("h-full dark", "antialiased", outfit.variable, manrope.variable, "font-sans", geist.variable)}
     >
       <body className="min-h-full flex flex-col">
-        {/*
-          AuthProvider restores the session on boot: the access token lives in
-          memory only, so a page refresh loses it and is recovered from the
-          HttpOnly refresh cookie.
-        */}
-        <AuthProvider>{children}</AuthProvider>
+        {children}
         {/* Mounted once here, not per-form — multiple Toasters render duplicates. */}
         <Toaster position="top-center" richColors />
       </body>
