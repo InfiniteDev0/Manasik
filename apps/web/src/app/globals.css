@@ -190,6 +190,12 @@ p, span{
 /* Target the scrollbar specifically */
 .scrollbar-pill::-webkit-scrollbar {
   width: 6px; /* Width of the pill */
+  height: 6px; /* Same pill for horizontal scrollbars */
+}
+
+/* Where a vertical and a horizontal scrollbar meet */
+.scrollbar-pill::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* The "Track" (the background it sits on) */

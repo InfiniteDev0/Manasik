@@ -16,7 +16,7 @@ import { useTheme } from '@/features/theme/use-theme';
  * <p>Use `gooeyToast` from 'goey-toast' everywhere — not Sonner's `toast`.
  */
 export function Toaster() {
-  // Follows the app's theme, including "system".
-  const { resolvedTheme } = useTheme();
-  return <GooeyToaster position="top-center" theme={resolvedTheme} />;
+  // Follows the app's theme.
+  const { theme } = useTheme();
+  return <GooeyToaster position="top-center" theme={theme} />;
 }

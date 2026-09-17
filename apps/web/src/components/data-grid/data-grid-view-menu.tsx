@@ -1,0 +1,100 @@
+"use client";
+
+import type { Table } from "@tanstack/react-table";
+import { Settings2 } from "lucide-react";
+import * as React from "react";
+import { Button } from "@/components/data-grid/ui/button";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/data-grid/ui/command";
+import { useDirection } from "@/components/ui/direction";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/data-grid/ui/popover";
+import { cn } from "@/lib/utils";
+
+interface DataGridViewMenuProps<TData>
+  extends React.ComponentProps<typeof PopoverContent> {
+  table: Table<TData>;
+  disabled?: boolean;
+  /**
+   * Local addition (not in tablecn): replaces the default trigger button, so a
+   * page can style its own toolbar. Re-apply if this file is re-pulled.
+   */
+  trigger?: React.ReactElement;
+}
+
+export function DataGridViewMenu<TData>({
+  table,
+  disabled,
+  trigger,
+  className,
+  ...props
+}: DataGridViewMenuProps<TData>) {
+  const dir = useDirection();
+
+  const columns = React.useMemo(
+    () =>
+      table
+        .getAllColumns()
+        .filter(
+          (column) =>
+            typeof column.accessorFn !== "undefined" && column.getCanHide(),
+        ),
+    [table],
+  );
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        {trigger ?? (
+          <Button
+            aria-label="Toggle columns"
+            role="combobox"
+            dir={dir}
+            variant="outline"
+            className="ms-auto hidden h-8 font-normal lg:flex"
+            disabled={disabled}
+          >
+            <Settings2 className="text-muted-foreground" />
+            View
+          </Button>
+        )}
+      </PopoverTrigger>
+      <PopoverContent
+        dir={dir}
+        className={cn("w-44 p-0", className)}
+        {...props}
+      >
+        <Command>
+          <CommandInput placeholder="Search columns..." />
+          <CommandList>
+            <CommandEmpty>No columns found.</CommandEmpty>
+            <CommandGroup>
+              {columns.map((column) => (
+                <CommandItem
+                  key={column.id}
+                  data-checked={column.getIsVisible()}
+                  onSelect={() =>
+                    column.toggleVisibility(!column.getIsVisible())
+                  }
+                >
+                  <span className="truncate">
+                    {column.columnDef.meta?.label ?? column.id}
+                  </span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}

@@ -7,7 +7,6 @@ import {
   BellIcon,
   ChevronsUpDownIcon,
   LogOutIcon,
-  MonitorIcon,
   MoonIcon,
   Settings2Icon,
   SunIcon,
@@ -37,7 +36,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { signOut } from "@/features/auth/actions"
-import { isTheme } from "@/features/theme/theme-script"
+import { isTheme } from "@/features/theme/theme"
 import { useTheme } from "@/features/theme/use-theme"
 import { SETTINGS_LINK } from "@/features/workspace/navigation"
 
@@ -143,10 +142,6 @@ export function NavUser({
                     <DropdownMenuRadioItem value="dark">
                       <MoonIcon />
                       Dark
-                    </DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="system">
-                      <MonitorIcon />
-                      System
                     </DropdownMenuRadioItem>
                   </DropdownMenuRadioGroup>
                 </DropdownMenuSubContent>
