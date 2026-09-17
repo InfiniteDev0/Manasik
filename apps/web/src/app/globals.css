@@ -6,6 +6,17 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Manasik brand palette → utilities like bg-vivid-cyan, text-ocean-green.
+   Vivid Cyan is the teal of the palette swatch and the "Create New Tour"
+   button; the swatch's label reads #054431, which is a much darker green. */
+@theme {
+  --color-vivid-cyan: #108a8b;
+  --color-ocean-green: #00b894;
+  --color-ocean-blue: #32d1df;
+  /* The pale mint page background behind the white dashboard cards. */
+  --color-canvas: #eff5f4;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -79,7 +90,7 @@ p, span{
 }
 
 :root {
-  --background: oklch(1 0 0);
+   --background: oklch(96.158% 0.00563 84.446);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);

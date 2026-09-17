@@ -12,6 +12,8 @@ export interface SignInState {
   error: string | null;
   /** Echoed back so a failed attempt doesn't make you retype your email. */
   email: string;
+  /** Set on success: where to go next, already checked to be same-origin. */
+  redirectTo: string | null;
 }
 
 /**
@@ -20,27 +22,32 @@ export interface SignInState {
  * <p>Runs on the server, so the password goes straight from the form to
  * Supabase and the session comes back as HttpOnly cookies — no token is ever
  * handed to browser JavaScript.
+ *
+ * <p>Returns the destination rather than redirecting, so the login form can
+ * finish its toast before it navigates.
  */
 export async function signIn(_previous: SignInState, formData: FormData): Promise<SignInState> {
+  const email = String(formData.get('email') ?? '');
+  const redirectTo = safeNextPath(formData.get('next'));
+
   if (!AUTH_ENABLED) {
-    redirect(safeNextPath(formData.get('next')));
+    return { error: null, email, redirectTo };
   }
 
-  const email = String(formData.get('email') ?? '');
   const parsed = loginSchema.safeParse({ email, password: formData.get('password') });
 
   if (!parsed.success) {
-    return { error: 'Enter your email and password.', email };
+    return { error: 'Enter your email and password.', email, redirectTo: null };
   }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
 
   if (error) {
-    return { error: signInErrorMessage(error.code), email };
+    return { error: signInErrorMessage(error.code), email, redirectTo: null };
   }
 
-  redirect(safeNextPath(formData.get('next')));
+  return { error: null, email, redirectTo };
 }
 
 /**

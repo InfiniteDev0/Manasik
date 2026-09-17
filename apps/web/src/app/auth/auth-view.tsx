@@ -2,27 +2,45 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import { useSearchParams } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { LoginForm } from '@/components/forms/login-form';
+import { AuthForms, type AuthMode } from '@/components/forms/auth-forms';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Mobile  → hero image with a CTA; the login panel swipes in over it.
-// Desktop → fixed 50/50 split. Image always on the left, form on the right.
+// Mobile  → hero image with a CTA; the auth panel swipes in over it.
+// Desktop → fixed 50/50 split. Image always on the left, forms always on the
+//           right. Switching login/signup swaps the form, never the layout.
 //
-// The page is pinned to the viewport (`h-svh` + `overflow-hidden`). If the form
+// The page is pinned to the viewport (`h-svh` + `overflow-hidden`). If a form
 // ever grows taller than the screen, the form COLUMN scrolls, not the page.
 //
-// Sign-in only: Manasik has a single admin account, created in Supabase. There is
-// no public sign-up.
+// The active form lives in the URL — `/auth` is login, `/auth?mode=signup` is
+// sign-up — so a refresh or a shared link opens the same form, and the back
+// button undoes a switch. The sign-up form is UI only (see signup-form.tsx).
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function AuthView({ next }: { next?: string }) {
   const [started, setStarted] = useState(false);
+  const searchParams = useSearchParams();
+  const mode: AuthMode = searchParams.get('mode') === 'signup' ? 'signup' : 'login';
+
+  // Native history API: Next keeps useSearchParams in sync with it, and unlike
+  // router.push it doesn't re-request the page from the server.
+  function setMode(nextMode: AuthMode) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (nextMode === 'signup') {
+      params.set('mode', 'signup');
+    } else {
+      params.delete('mode');
+    }
+    const query = params.toString();
+    window.history.pushState(null, '', query ? `?${query}` : window.location.pathname);
+  }
 
   return (
     <>
-      {/* ── Mobile: hero → swipe-in login ────────────────────────────────── */}
+      {/* ── Mobile: hero → swipe-in auth ─────────────────────────────────── */}
       <div className="relative h-svh overflow-hidden lg:hidden">
         {/* Hero panel */}
         <div
@@ -65,7 +83,7 @@ export function AuthView({ next }: { next?: string }) {
           </div>
         </div>
 
-        {/* Login panel */}
+        {/* Auth panel */}
         <div
           className={cn(
             "bg-background absolute inset-0 flex translate-x-full flex-col gap-4 p-6 transition-transform duration-300 ease-out",
@@ -81,17 +99,17 @@ export function AuthView({ next }: { next?: string }) {
             <ChevronLeft className="size-5" />
           </button>
 
-          <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto">
-            <LoginForm next={next} />
+          <div className="scrollbar-pill flex min-h-0 flex-1 overflow-y-auto">
+            <AuthForms mode={mode} setMode={setMode} next={next} />
           </div>
         </div>
       </div>
 
-      {/* ── Desktop: split screen, form always visible ───────────────────── */}
+      {/* ── Desktop: split screen, forms always visible ─────────────────── */}
       <div className="hidden lg:grid lg:h-svh lg:grid-cols-2 lg:gap-2 lg:overflow-hidden lg:p-2">
         <div className="relative overflow-hidden rounded-lg">
           <Image
-            src="/kaabah.jpg"
+            src="/authimage.png"
             alt=""
             fill
             priority
@@ -114,8 +132,8 @@ export function AuthView({ next }: { next?: string }) {
             </div>
           </div>
 
-          <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto">
-            <LoginForm next={next} />
+          <div className="scrollbar-pill flex min-h-0 flex-1 overflow-y-auto">
+            <AuthForms mode={mode} setMode={setMode} next={next} />
           </div>
         </div>
       </div>

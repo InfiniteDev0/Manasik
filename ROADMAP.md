@@ -32,7 +32,7 @@ These replace every decision in the archived roadmap (Flyway, Hibernate tenancy,
 | **D3** | Future multi-user | Every domain table carries **`agency_id uuid not null references auth.users(id)`**, set to the admin's `auth.uid()`. RLS: `using (agency_id = auth.uid())`. | Bringing on a second person later means adding `agencies` + `agency_members` and **swapping the policy** — no backfill, no data migration, because every row already holds the right value. |
 | **D4** | Sessions | Supabase email + password via a **Server Action**. Tokens live only in **HttpOnly, Secure (prod), SameSite=Lax** cookies. `proxy.ts` refreshes the session on every request. **No browser Supabase client.** | JavaScript can never read the tokens, and you stay signed in on each device until you sign out. See "Auth, as built" below. |
 | **D5** | Client state | No TanStack Query, no Zustand. | Server Components and Server Actions cover the MVP; one less thing to configure. |
-| **D6** | Auth switched off for now | **`AUTH_ENABLED = false`** in `apps/web/src/features/auth/config.ts`. The app runs with no Supabase project: every request is let through, a placeholder "Admin" is the current user, "Log in" goes straight to the workspace, "Log out" goes to `/auth`. | Build the frontend first. The auth code from D4 stays in place and switches back on with that one flag — see "Turning auth back on" below. ⚠️ Never deploy real data with it off. |
+| **D6** | Auth switched off for now | **`AUTH_ENABLED = false`** in `apps/web/src/features/auth/config.ts`. The app runs with no Supabase project: every request is let through, a placeholder "Admin" is the current user, "Log in" goes straight to the workspace, and the `signOut` action goes to `/auth`. The Log in / Sign up switch is back (`/auth?mode=signup`), but **sign-up is UI only and never creates an account** — with auth on it says sign-up isn't available. | Build the frontend first. The auth code from D4 stays in place and switches back on with that one flag — see "Turning auth back on" below. ⚠️ Never deploy real data with it off. |
 
 ---
 
@@ -61,7 +61,8 @@ These replace every decision in the archived roadmap (Flyway, Hibernate tenancy,
 
 - [x] Removed `apps/api` (Spring Boot) and its CI job / deploy workflow.
 - [x] Removed the Spring auth client, in-memory token store, sign-up, email verification, onboarding, workspace switcher, plan badge, pricing and staff pages.
-- [x] Routes flattened: `/workspace/[orgId]/…` → `/workspace/…`. The mock workspace screens (pilgrims, packages, bookings, groups, payments, documents, settings) are kept.
+- [x] Routes flattened: `/workspace/[orgId]/…` → `/workspace/…`.
+- [x] **Dashboard reset to zero (2026-09-16).** The mock workspace — sidebar, header, pilgrims / packages / bookings / groups / payments / documents / settings, mock data, data table, strings/money/date helpers, and the old spec docs — is removed. `/workspace` is a single blank page; the dashboard gets designed from scratch. Everything removed is recoverable from commit `90f3058`.
 - [x] `@manasik/types`: dropped organization / membership / permission / user. `@manasik/validations`: down to `loginSchema`, now shipped as source. `@manasik/config`: dropped plans, token constants and the old env validator.
 - [x] Supabase auth wired as described above. `zustand` removed; `@supabase/ssr` + `@supabase/supabase-js` added.
 - [x] `.env.example`, CI, `.gitignore`, `.vscode` updated for the new stack.
@@ -71,9 +72,8 @@ These replace every decision in the archived roadmap (Flyway, Hibernate tenancy,
 **Checkpoint 0** *(a run — Rule 1)*:
 
 1. `pnpm install` is clean; `pnpm typecheck` passes.
-2. `pnpm dev` → `/` opens the workspace, greeted as "Admin". No Supabase keys needed.
-3. Every sidebar page renders.
-4. `/auth` → **Log in** lands on the workspace; **Log out** from the user menu lands on `/auth`.
+2. `pnpm dev` → `/` opens the login page. No Supabase keys needed.
+3. **Log in** (any email/password while auth is off) lands on the blank `/workspace` page.
 
 > Branding note: the logo images and the Kaaba photo on the login page are unchanged — only the tagline now says "travel agencies".
 
@@ -106,7 +106,7 @@ Do these in order when it's time to add auth back.
 2. Wrong password → "Incorrect email or password."
 3. DevTools → Application → Cookies: `sb-…-auth-token` is **HttpOnly**.
 4. Close the browser, reopen `/` → straight into the workspace, no login.
-5. Sign out → `/auth`; opening `/workspace` again redirects back to `/auth`.
+5. Sign out → `/auth`; opening `/workspace` again redirects back to `/auth`. *(Needs a Log out button in the new dashboard wired to `signOut` from `features/auth/actions.ts`.)*
 
 ---
 
@@ -114,15 +114,24 @@ Do these in order when it's time to add auth back.
 
 Order from the MVP plan; each gets detailed before it starts.
 
-1. **Supabase schema foundations** — first domain table with `agency_id` + RLS, proven against a second test user. Open question: how clients relate to the existing pilgrims / packages / groups mock screens.
+1. **Supabase schema foundations** — first domain table with `agency_id` + RLS, proven against a second test user. Open question: where Hajj & Umrah packages sit alongside clients and bookings.
 2. **Clients (CRM)** — pipeline (new lead → contacted → quoted → booked → past client), client detail, notes.
 3. **Suppliers + bookings** — confirmation status, and both payment flags: *client paid agency* and *agency paid supplier*.
 4. **Trips** — group a client's bookings into a shareable itinerary / quote.
 5. **Notifications** — event-triggered push first (webhook → Edge Function → Web Push), scheduled reminders via `pg_cron` after.
 6. **PWA + mobile pass** — manifest, Serwist service worker, install prompt ("Add to Home Screen" is required for iOS push).
 
+## Dev environment — to do later (saved 2026-09-16)
+
+**Why:** edits often don't show until a hard refresh. Most likely cause: the repo lives inside OneDrive, which syncs and locks every file (including `node_modules` and `.next`) and can make Next's file watcher miss changes. The same locks made Windows refuse to move folders during the Phase 0 cleanup.
+
+- [ ] Move the repo out of OneDrive, e.g. to `C:\dev\manasik`.
+- [ ] Delete `apps/web/.next`.
+- [ ] Run `pnpm install`, then `pnpm dev`.
+- [ ] Add the project folder to the **Microsoft Defender exclusions** list (Windows Security → Virus & threat protection → Manage settings → Add or remove exclusions) — recommended by Next's own local-development guide.
+
+If edits still need a hard refresh afterwards, check the browser console on save: "[Fast Refresh] performing full reload" means something in the code forces a reload; no message means changes aren't being detected. Remember that `.env.local`, `next.config.ts`, `proxy.ts` and newly installed packages always need a dev-server restart.
+
 ## Later (do not think about these yet)
 
 Tasks · second user (`agencies` + `agency_members`, policy swap per D3) · billing · passkeys / MFA · password recovery screens · Resend email · Sentry · deployment (Vercel)
-
-`docs/workspace-mvp-plan.md` still describes wiring the mock screens to the Spring API (its Phase C) — that part is superseded by this file.

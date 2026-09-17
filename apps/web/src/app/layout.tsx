@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Manrope, Outfit, Geist } from "next/font/google";
-import { Toaster } from "sonner";
+import { Toaster } from "@/components/providers/toaster";
+import { THEME_INIT_SCRIPT } from "@/features/theme/theme-script";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 
@@ -28,14 +29,23 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
+    // Theme: light by default, switchable in the user menu. Dark mode is
+    // class-based (`@custom-variant dark` in globals.css) — the script below adds
+    // "dark" to <html> before first paint when that's the saved choice. Because
+    // it changes <html> before React hydrates, the mismatch warning is
+    // suppressed here (it only covers this element's own attributes).
     <html
       lang="en"
-      className={cn("h-full dark", "antialiased", outfit.variable, manrope.variable, "font-sans", geist.variable)}
+      suppressHydrationWarning
+      className={cn("h-full", "antialiased", outfit.variable, manrope.variable, "font-sans", geist.variable)}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="min-h-full flex flex-col">
         {children}
         {/* Mounted once here, not per-form — multiple Toasters render duplicates. */}
-        <Toaster position="top-center" richColors />
+        <Toaster />
       </body>
     </html>
   );
