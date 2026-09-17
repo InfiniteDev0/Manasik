@@ -1,4 +1,4 @@
-import type { DatePickerValue } from '@/components/date-picker';
+import { matchesDateRange, type DatePickerValue } from '@/components/date-picker';
 import { formatDateToString } from '@/lib/data-grid';
 
 /** One ticket sold to a client. Dates are `yyyy-mm-dd`. */
@@ -83,34 +83,18 @@ export interface TicketCategory {
 /** The tabs across the top of the table. Add a category here to get a new tab. */
 export const TICKET_CATEGORIES: TicketCategory[] = [{ id: 'all', label: 'All tickets', matches: () => true }];
 
-/** Whether a ticket's date is the picked day or inside the picked range. Nothing picked matches all. */
-export function ticketMatchesDate(ticket: TicketRow, picked: DatePickerValue): boolean {
-  if (picked.mode === 'single') {
-    return !picked.value || ticket.date === formatDateToString(picked.value);
-  }
-  const range = picked.value;
-  if (!range?.from) {
-    return true;
-  }
-  const from = formatDateToString(range.from);
-  // Only a start picked so far (mid-selection): just that day.
-  const to = range.to ? formatDateToString(range.to) : from;
-  return ticket.date >= from && ticket.date <= to;
-}
+/** The ticket dates a range can be matched against. */
+export type TicketDateField = 'date' | 'departure';
 
-const DATE_FORMAT = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-const MONEY_FORMAT = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-/** "2026-09-17" → "Sep 17, 2026". Anything unparseable is shown as-is. */
-export function formatTicketDate(value: string): string {
-  const [year, month, day] = value.split('-').map(Number);
-  if (!year || !month || !day) {
-    return value;
-  }
-  return DATE_FORMAT.format(new Date(year, month - 1, day));
-}
-
-/** 780 → "780.00"; empty → "—". No currency symbol until the currency is decided. */
-export function formatTicketMoney(value: number | null): string {
-  return value === null ? '—' : MONEY_FORMAT.format(value);
+/**
+ * Whether the ticket's created or departure date is the picked day, or inside
+ * the picked range. A ticket with no departure date drops out while the picker
+ * is on Departure.
+ */
+export function ticketMatchesDate(
+  ticket: TicketRow,
+  picked: DatePickerValue,
+  field: TicketDateField = 'date',
+): boolean {
+  return matchesDateRange(ticket[field], picked);
 }

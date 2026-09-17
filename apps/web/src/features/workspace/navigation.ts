@@ -18,7 +18,7 @@ export type NavItem =
 export const NAV_MAIN: NavItem[] = [
   { title: 'Dashboard', icon: '/home.svg', href: WORKSPACE_PATH },
   { title: 'Tickets', icon: '/ticket.svg', href: `${WORKSPACE_PATH}/tickets` },
-  { title: 'Visas', icon: '/visa.png', href: `${WORKSPACE_PATH}/visas` },
+  { title: 'Visas', icon: '/passport.svg', href: `${WORKSPACE_PATH}/visas` },
   { title: 'Services', icon: '/services.svg', href: `${WORKSPACE_PATH}/services` },
   {
     title: 'Finance',

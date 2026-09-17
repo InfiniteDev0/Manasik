@@ -15,40 +15,29 @@ import { ChevronDownIcon, ChevronsUpDownIcon, ChevronUpIcon } from 'lucide-react
 import { AnimatePresence, motion, Reorder } from 'motion/react';
 import * as React from 'react';
 
-import { EMPTY_DATE_PICKER_VALUE, getMonthValue, type DatePickerValue } from '@/components/date-picker';
-import { SectionHeader, SelectionBar, TableTabs } from '@/components/table-parts';
+import { DatePicker, EMPTY_DATE_PICKER_VALUE, getMonthValue, type DatePickerValue } from '@/components/date-picker';
+import { SectionHeader, SelectionBar, TableSearch, TableTabs } from '@/components/table-parts';
 import { Checkbox } from '@/components/ui/checkbox';
 import { formatDateToString } from '@/lib/data-grid';
 import { exportTableToCsv } from '@/lib/export-csv';
 import { formatAmount, formatDayLabel } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
-import { TicketForm } from './ticket-form';
-import { TicketSheet } from './ticket-sheet';
+import { VisaStatusBadge } from './visa-fields';
+import { VisaForm } from './visa-form';
+import { VisaSheet } from './visa-sheet';
 import {
-  SAMPLE_TICKETS,
-  TICKET_CATEGORIES,
-  ticketMatchesDate,
-  ticketMatchesSearch,
-  type TicketDateField,
-  type TicketRow,
-} from './tickets-data';
-import { TicketsToolbar } from './tickets-toolbar';
+  SAMPLE_VISAS,
+  VISA_CATEGORIES,
+  visaMatchesDate,
+  visaMatchesSearch,
+  type VisaRow,
+} from './visas-data';
 
-// ─── Cells ───────────────────────────────────────────────────────────────────
+// ─── Columns ─────────────────────────────────────────────────────────────────
 
-/** A bold first line with a muted second line underneath. */
-function TwoLineCell({ primary, secondary }: { primary: React.ReactNode; secondary: React.ReactNode }) {
-  return (
-    <div className="min-w-0">
-      <p className="text-foreground truncate font-medium">{primary}</p>
-      <p className="text-muted-foreground truncate text-xs">{secondary}</p>
-    </div>
-  );
-}
-
-function ClientCell({ ticket }: { ticket: TicketRow }) {
-  const initials = ticket.client
+function NameCell({ visa }: { visa: VisaRow }) {
+  const initials = visa.name
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
@@ -60,28 +49,12 @@ function ClientCell({ ticket }: { ticket: TicketRow }) {
       <span className="bg-vivid-cyan/10 text-vivid-cyan flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold">
         {initials || '?'}
       </span>
-      <TwoLineCell primary={ticket.client || 'Unnamed'} secondary={ticket.phone || 'No phone'} />
+      <span className="text-foreground truncate font-medium">{visa.name || 'Unnamed'}</span>
     </div>
   );
 }
 
-// ─── Columns ─────────────────────────────────────────────────────────────────
-
-// Phone, route and ref are shown as the second line of another column, so their
-// own columns stay hidden — but they still exist for the CSV export.
-const HIDDEN_COLUMNS = { phone: false, route: false, reference: false };
-
-function hiddenColumn(id: 'phone' | 'route' | 'reference', label: string): ColumnDef<TicketRow> {
-  return {
-    id,
-    accessorKey: id,
-    header: label,
-    meta: { label, cell: { variant: 'short-text' } },
-    enableSorting: false,
-  };
-}
-
-function moneyColumn(id: 'collected' | 'commission' | 'net', label: string): ColumnDef<TicketRow> {
+function moneyColumn(id: 'net' | 'paid' | 'commission', label: string): ColumnDef<VisaRow> {
   return {
     id,
     accessorKey: id,
@@ -95,19 +68,19 @@ function moneyColumn(id: 'collected' | 'commission' | 'net', label: string): Col
   };
 }
 
-const COLUMNS: ColumnDef<TicketRow>[] = [
+const COLUMNS: ColumnDef<VisaRow>[] = [
   {
     id: 'select',
     header: ({ table }) => (
       <Checkbox
-        aria-label="Select all tickets"
+        aria-label="Select all visas"
         checked={table.getIsAllRowsSelected()}
         onCheckedChange={(checked) => table.toggleAllRowsSelected(checked)}
       />
     ),
     cell: ({ row }) => (
       <Checkbox
-        aria-label="Select ticket"
+        aria-label="Select visa"
         checked={row.getIsSelected()}
         onCheckedChange={(checked) => row.toggleSelected(checked)}
       />
@@ -116,50 +89,30 @@ const COLUMNS: ColumnDef<TicketRow>[] = [
     enableHiding: false,
   },
   {
-    id: 'client',
-    accessorKey: 'client',
-    header: 'Client',
-    meta: { label: 'Client', cell: { variant: 'short-text' } },
-    cell: ({ row }) => <ClientCell ticket={row.original} />,
+    id: 'name',
+    accessorKey: 'name',
+    header: 'Name',
+    meta: { label: 'Name', cell: { variant: 'short-text' } },
+    cell: ({ row }) => <NameCell visa={row.original} />,
   },
-  hiddenColumn('phone', 'Phone'),
   {
-    id: 'airline',
-    accessorKey: 'airline',
-    header: 'Airline',
-    meta: { label: 'Airline', cell: { variant: 'short-text' } },
-    cell: ({ row }) => (
-      <TwoLineCell primary={row.original.airline || '—'} secondary={row.original.route || 'No route'} />
-    ),
+    id: 'status',
+    accessorKey: 'status',
+    header: 'Visa status',
+    meta: { label: 'Visa status', cell: { variant: 'short-text' } },
+    cell: ({ row }) => <VisaStatusBadge status={row.original.status} />,
   },
-  hiddenColumn('route', 'Route'),
   {
-    id: 'departure',
-    accessorKey: 'departure',
-    header: 'Departure',
-    meta: { label: 'Departure', cell: { variant: 'date' } },
-    cell: ({ row }) => (
-      <span className="text-foreground">{row.original.departure ? formatDayLabel(row.original.departure) : '—'}</span>
-    ),
+    id: 'city',
+    accessorKey: 'city',
+    header: 'City',
+    meta: { label: 'City', cell: { variant: 'short-text' } },
+    cell: ({ row }) => <span className="text-foreground">{row.original.city || '—'}</span>,
   },
-  moneyColumn('collected', 'Collected'),
+  moneyColumn('net', 'Net amount'),
+  moneyColumn('paid', 'Paid amount'),
   moneyColumn('commission', 'Commission'),
-  moneyColumn('net', 'Net'),
-  {
-    id: 'pnr',
-    accessorKey: 'pnr',
-    header: 'PNR',
-    meta: { label: 'PNR', cell: { variant: 'short-text' } },
-    enableSorting: false,
-    cell: ({ row }) => (
-      <TwoLineCell
-        primary={<span className="font-mono tracking-wide uppercase">{row.original.pnr || '—'}</span>}
-        secondary={row.original.reference || 'No ref'}
-      />
-    ),
-  },
-  hiddenColumn('reference', 'Ref'),
-  // The day the ticket was issued — filled in on its own, so it sits at the end.
+  // The day the visa was created — filled in on its own, so it sits at the end.
   {
     id: 'date',
     accessorKey: 'date',
@@ -187,50 +140,46 @@ const getNoMonth = () => null;
 // ─── Table ───────────────────────────────────────────────────────────────────
 
 /**
- * The Tickets table: category tabs, search and filters, sortable headers, and
+ * The Visas table: status tabs, search and a date filter, sortable headers, and
  * rows you can grab anywhere and drag into a new order. Clicking a row opens it
  * for editing. Rows live in local state for now.
  */
-export function TicketsTable() {
+export function VisasTable() {
   // TanStack keeps its state inside a stable `table` object, which the React
   // Compiler can't see change — so this component opts out of memoization.
   'use no memo';
 
-  const [data, setData] = React.useState<TicketRow[]>(SAMPLE_TICKETS);
+  const [data, setData] = React.useState<VisaRow[]>(SAMPLE_VISAS);
   const [categoryId, setCategoryId] = React.useState('all');
   const [searchQuery, setSearchQuery] = React.useState('');
   // null until a date is picked — until then the filter is the current month.
   const [pickedDate, setPickedDate] = React.useState<DatePickerValue | null>(null);
-  // Which date the picker filters on: when the ticket was created, or departure.
-  const [dateField, setDateField] = React.useState<TicketDateField>('date');
   const currentMonth = React.useSyncExternalStore(subscribeNever, getCurrentMonth, getNoMonth);
   const thisMonth = React.useMemo(
     () => (currentMonth ? getMonthValue(parse(currentMonth, 'yyyy-MM', new Date())) : EMPTY_DATE_PICKER_VALUE),
     [currentMonth],
   );
   const dateFilter = pickedDate ?? thisMonth;
-  // The sheet keeps its last ticket while it animates closed.
-  const [sheetTicket, setSheetTicket] = React.useState<{ ticket: TicketRow; isNew: boolean } | null>(null);
+
+  // The sheet keeps its last visa while it animates closed.
+  const [sheetVisa, setSheetVisa] = React.useState<VisaRow | null>(null);
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const [adding, setAdding] = React.useState(false);
   const [draggingId, setDraggingId] = React.useState<string | null>(null);
   // Letting go of a drag also fires a click on the row; this swallows it.
   const justDraggedRef = React.useRef(false);
 
-  const category = TICKET_CATEGORIES.find(({ id }) => id === categoryId) ?? TICKET_CATEGORIES[0];
+  const category = VISA_CATEGORIES.find(({ id }) => id === categoryId) ?? VISA_CATEGORIES[0];
 
-  // The tab and the date picker narrow the tickets before the table sees them;
+  // The tab and the date picker narrow the visas before the table sees them;
   // the search then runs inside the table.
   const tableData = React.useMemo(
-    () =>
-      data.filter(
-        (ticket) => (!category || category.matches(ticket)) && ticketMatchesDate(ticket, dateFilter, dateField),
-      ),
-    [data, category, dateFilter, dateField],
+    () => data.filter((visa) => (!category || category.matches(visa)) && visaMatchesDate(visa, dateFilter)),
+    [data, category, dateFilter],
   );
 
   const counts = React.useMemo(
-    () => Object.fromEntries(TICKET_CATEGORIES.map(({ id, matches }) => [id, data.filter(matches).length])),
+    () => Object.fromEntries(VISA_CATEGORIES.map(({ id, matches }) => [id, data.filter(matches).length])),
     [data],
   );
 
@@ -240,9 +189,8 @@ export function TicketsTable() {
     getRowId: (row) => row.id,
     state: { globalFilter: searchQuery },
     onGlobalFilterChange: setSearchQuery,
-    // The search looks at the whole ticket, not one column at a time.
-    globalFilterFn: (row, _columnId, query: string) => ticketMatchesSearch(row.original, query),
-    initialState: { columnVisibility: HIDDEN_COLUMNS },
+    // The search looks at the whole visa, not one column at a time.
+    globalFilterFn: (row, _columnId, query: string) => visaMatchesSearch(row.original, query),
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -254,39 +202,39 @@ export function TicketsTable() {
   // A sort decides the on-screen order, so dragging is off while one is active.
   const canReorder = table.getState().sorting.length === 0;
 
-  const openSheet = (ticket: TicketRow, isNew: boolean) => {
-    setSheetTicket({ ticket, isNew });
+  const openSheet = (visa: VisaRow) => {
+    setSheetVisa(visa);
     setSheetOpen(true);
   };
 
   // `nextIds` is the new order of the rows on screen. Their slots in the full
-  // list are refilled in that order, so tickets hidden by a tab, search or
-  // filter keep their places.
+  // list are refilled in that order, so visas hidden by a tab, the search or the
+  // date filter keep their places.
   const onReorder = (nextIds: string[]) => {
     setData((previous) => {
-      const byId = new Map(previous.map((ticket) => [ticket.id, ticket]));
+      const byId = new Map(previous.map((visa) => [visa.id, visa]));
       const moving = new Set(nextIds);
       let slot = 0;
-      return previous.map((ticket) => {
-        if (!moving.has(ticket.id)) return ticket;
+      return previous.map((visa) => {
+        if (!moving.has(visa.id)) return visa;
         const id = nextIds[slot++];
-        return (id && byId.get(id)) || ticket;
+        return (id && byId.get(id)) || visa;
       });
     });
   };
 
-  // Deletes with an Undo that puts the tickets back where they were.
-  const deleteTickets = (ids: string[]) => {
+  // Deletes with an Undo that puts the visas back where they were.
+  const deleteVisas = (ids: string[]) => {
     const idSet = new Set(ids);
-    const removed = data.flatMap((ticket, index) => (idSet.has(ticket.id) ? [{ ticket, index }] : []));
+    const removed = data.flatMap((visa, index) => (idSet.has(visa.id) ? [{ visa, index }] : []));
     if (removed.length === 0) return;
 
-    setData((previous) => previous.filter((ticket) => !idSet.has(ticket.id)));
+    setData((previous) => previous.filter((visa) => !idSet.has(visa.id)));
     table.setRowSelection((previous) =>
       Object.fromEntries(Object.entries(previous).filter(([id]) => !idSet.has(id))),
     );
 
-    gooeyToast.success(`${removed.length} ${removed.length === 1 ? 'ticket' : 'tickets'} deleted`, {
+    gooeyToast.success(`${removed.length} ${removed.length === 1 ? 'visa' : 'visas'} deleted`, {
       action: {
         label: 'Undo',
         successLabel: 'Restored',
@@ -294,9 +242,9 @@ export function TicketsTable() {
           setData((previous) => {
             const next = [...previous];
             // Ascending original positions, so each insert lands where it was.
-            for (const { ticket, index } of removed) {
-              if (!next.some((existing) => existing.id === ticket.id)) {
-                next.splice(Math.min(index, next.length), 0, ticket);
+            for (const { visa, index } of removed) {
+              if (!next.some((existing) => existing.id === visa.id)) {
+                next.splice(Math.min(index, next.length), 0, visa);
               }
             }
             return next;
@@ -305,23 +253,17 @@ export function TicketsTable() {
     });
   };
 
-  const saveTicket = (ticket: TicketRow) => {
-    if (sheetTicket?.isNew) {
-      // Newest first. The search is cleared so the new ticket isn't hidden by it.
-      setData((previous) => [ticket, ...previous]);
-      setSearchQuery('');
-    } else {
-      setData((previous) => previous.map((existing) => (existing.id === ticket.id ? ticket : existing)));
-    }
-    setSheetOpen(false);
-  };
-
-  const createTicket = (ticket: TicketRow) => {
-    // Newest first. The search is cleared so the new ticket isn't hidden by it.
-    setData((previous) => [ticket, ...previous]);
+  const createVisa = (visa: VisaRow) => {
+    // Newest first. The search is cleared so the new visa isn't hidden by it.
+    setData((previous) => [visa, ...previous]);
     setSearchQuery('');
     setAdding(false);
-    gooeyToast.success('Ticket created');
+    gooeyToast.success('Visa created');
+  };
+
+  const saveVisa = (visa: VisaRow) => {
+    setData((previous) => previous.map((existing) => (existing.id === visa.id ? visa : existing)));
+    setSheetOpen(false);
   };
 
   const onlySelected = selectedRows.length === 1 ? selectedRows[0] : undefined;
@@ -329,45 +271,50 @@ export function TicketsTable() {
   return (
     <div className="flex flex-col gap-5">
       <SectionHeader
-        title="Tickets"
-        description="Track the tickets you issue to clients — who is flying, where, and what was paid."
-        addLabel="Add ticket"
-        onExport={() => exportTableToCsv(table, `tickets-${formatDateToString(new Date())}.csv`)}
+        title="Visas"
+        description="Track the visas you handle for clients — where they're going, and what was paid."
+        addLabel="Add visa"
+        onExport={() => exportTableToCsv(table, `visas-${formatDateToString(new Date())}.csv`)}
         onAdd={() => setAdding((open) => !open)}
         adding={adding}
       />
 
       <div className="bg-card overflow-hidden rounded-xl border shadow-xs">
         <TableTabs
-          tabs={TICKET_CATEGORIES}
+          tabs={VISA_CATEGORIES}
           value={categoryId}
           onValueChange={setCategoryId}
           counts={counts}
-          label="Ticket categories"
-        />
-        <TicketsToolbar
-          searchQuery={searchQuery}
-          onSearchQueryChange={setSearchQuery}
-          dateFilter={dateFilter}
-          onDateFilterChange={setPickedDate}
-          dateField={dateField}
-          onDateFieldChange={setDateField}
+          label="Visa categories"
         />
 
-        {/* Add ticket opens this space above the table and pushes the table
-            down. Empty for now. Add ticket again closes it. */}
+        <div className="flex flex-wrap items-center justify-between gap-3 p-3">
+          <TableSearch
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Search visas"
+            label="Search visas"
+          />
+          <DatePicker
+            value={dateFilter}
+            onChange={setPickedDate}
+            align="end"
+            className="bg-card h-9 shadow-xs"
+          />
+        </div>
+
+        {/* Add visa opens this space above the table and pushes the table down. */}
         <AnimatePresence initial={false}>
           {adding ? (
             <motion.div
-              key="add-ticket"
-              id="add-ticket-panel"
+              key="add-visa"
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.2, ease: 'easeOut' }}
               className="overflow-hidden"
             >
-              <TicketForm onCreate={createTicket} onCancel={() => setAdding(false)} />
+              <VisaForm onCreate={createVisa} onCancel={() => setAdding(false)} />
             </motion.div>
           ) : null}
         </AnimatePresence>
@@ -384,11 +331,11 @@ export function TicketsTable() {
             >
               <SelectionBar
                 count={selectedRows.length}
-                onEdit={onlySelected ? () => openSheet(onlySelected.original, false) : undefined}
+                onEdit={onlySelected ? () => openSheet(onlySelected.original) : undefined}
                 onExport={() =>
-                  exportTableToCsv(table, `tickets-selected-${formatDateToString(new Date())}.csv`, selectedRows)
+                  exportTableToCsv(table, `visas-selected-${formatDateToString(new Date())}.csv`, selectedRows)
                 }
-                onDelete={() => deleteTickets(selectedRows.map((row) => row.original.id))}
+                onDelete={() => deleteVisas(selectedRows.map((row) => row.original.id))}
                 onClear={() => table.resetRowSelection()}
               />
             </motion.div>
@@ -461,11 +408,11 @@ export function TicketsTable() {
                     });
                   }}
                   onClick={() => {
-                    if (!justDraggedRef.current) openSheet(row.original, false);
+                    if (!justDraggedRef.current) openSheet(row.original);
                   }}
                   onKeyDown={(event: React.KeyboardEvent) => {
                     if (event.key === 'Enter' && event.target === event.currentTarget) {
-                      openSheet(row.original, false);
+                      openSheet(row.original);
                     }
                   }}
                   tabIndex={0}
@@ -485,7 +432,7 @@ export function TicketsTable() {
                     return (
                       <td
                         key={cell.id}
-                        // The checkbox toggles selection only — it doesn't open the ticket.
+                        // The checkbox toggles selection only — it doesn't open the visa.
                         onClick={isSelect ? (event) => event.stopPropagation() : undefined}
                         onKeyDown={isSelect ? (event) => event.stopPropagation() : undefined}
                         className={cn(
@@ -504,7 +451,7 @@ export function TicketsTable() {
               {rows.length === 0 ? (
                 <tr>
                   <td colSpan={visibleColumnCount} className="text-muted-foreground h-32 text-center text-sm">
-                    {data.length === 0 ? 'No tickets yet.' : 'No tickets match.'}
+                    {data.length === 0 ? 'No visas yet.' : 'No visas match.'}
                   </td>
                 </tr>
               ) : null}
@@ -513,16 +460,15 @@ export function TicketsTable() {
         </div>
       </div>
 
-      <TicketSheet
+      <VisaSheet
         open={sheetOpen}
-        ticket={sheetTicket?.ticket ?? null}
-        isNew={sheetTicket?.isNew ?? false}
+        visa={sheetVisa}
         onClose={() => setSheetOpen(false)}
-        onSave={saveTicket}
+        onSave={saveVisa}
         onDelete={
-          sheetTicket && !sheetTicket.isNew
+          sheetVisa
             ? () => {
-                deleteTickets([sheetTicket.ticket.id]);
+                deleteVisas([sheetVisa.id]);
                 setSheetOpen(false);
               }
             : undefined
