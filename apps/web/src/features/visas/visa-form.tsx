@@ -3,13 +3,14 @@
 import { XIcon } from 'lucide-react';
 import * as React from 'react';
 
+import { CountryPicker } from '@/components/country-picker';
 import { CalculatedAmount, MoneyInput } from '@/components/money-input';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { Currency } from '@/lib/currency';
 
-import { FieldLabel, VisaStatusSelect } from './visa-fields';
-import { newVisa, type VisaRow, type VisaStatus } from './visas-data';
+import { FieldLabel } from './visa-fields';
+import { newVisa, type VisaRow } from './visas-data';
 
 // Typed in: what the client paid and what the visa costs you. The commission
 // isn't — it's what's left, paid − net.
@@ -24,16 +25,19 @@ const toNumber = (value: string) => (value.trim() === '' ? null : Number(value))
 
 interface FormState {
   name: string;
-  status: VisaStatus;
-  city: string;
+  country: string;
+  broker: string;
   currency: Currency;
   paid: string;
   net: string;
 }
 
-/** Every field empty. The visa's date is the day it's created. */
+/**
+ * Every field empty. The visa's date is the day it's created, and it starts
+ * Pending — it's approved or rejected later, from its edit panel.
+ */
 function emptyForm(): FormState {
-  return { name: '', status: 'pending', city: '', currency: 'USD', paid: '', net: '' };
+  return { name: '', country: '', broker: '', currency: 'USD', paid: '', net: '' };
 }
 
 interface VisaFormProps {
@@ -51,12 +55,12 @@ export function VisaForm({ onCreate, onCancel }: VisaFormProps) {
   const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    // newVisa() dates it today — that's the visa's created date.
+    // newVisa() dates it today and makes it Pending.
     onCreate({
       ...newVisa(),
       name: form.name.trim(),
-      status: form.status,
-      city: form.city.trim(),
+      country: form.country,
+      broker: form.broker.trim(),
       currency: form.currency,
       paid,
       net,
@@ -81,21 +85,21 @@ export function VisaForm({ onCreate, onCancel }: VisaFormProps) {
       </div>
 
       <div className="space-y-1.5">
-        <FieldLabel htmlFor="new-visa-status">Visa status</FieldLabel>
-        <VisaStatusSelect
-          id="new-visa-status"
-          value={form.status}
-          onValueChange={(status) => setForm((current) => ({ ...current, status }))}
+        <FieldLabel htmlFor="new-visa-country">Country</FieldLabel>
+        <CountryPicker
+          id="new-visa-country"
+          value={form.country}
+          onChange={(country) => setForm((current) => ({ ...current, country }))}
         />
       </div>
 
       <div className="space-y-1.5">
-        <FieldLabel htmlFor="new-visa-city">City</FieldLabel>
+        <FieldLabel htmlFor="new-visa-broker">Broker</FieldLabel>
         <Input
-          id="new-visa-city"
-          placeholder="e.g. Dubai"
-          value={form.city}
-          onChange={(event) => setForm((current) => ({ ...current, city: event.target.value }))}
+          id="new-visa-broker"
+          placeholder="Who's processing it"
+          value={form.broker}
+          onChange={(event) => setForm((current) => ({ ...current, broker: event.target.value }))}
           className="h-9 w-full"
         />
       </div>

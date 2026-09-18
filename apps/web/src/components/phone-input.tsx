@@ -2,9 +2,15 @@
 
 import { ChevronDownIcon } from 'lucide-react';
 import * as React from 'react';
-import flags from 'react-phone-number-input/flags';
-import { getCountries, getCountryCallingCode, type Country } from 'react-phone-number-input/input';
+import { getCountryCallingCode } from 'react-phone-number-input/input';
 
+import {
+  ALL_COUNTRIES as COUNTRY_NAMES,
+  CountryFlag,
+  countryName,
+  TOP_COUNTRY_CODES,
+  type Country,
+} from '@/components/country-flag';
 import {
   Command,
   CommandEmpty,
@@ -25,14 +31,11 @@ interface CountryOption {
   dial: string;
 }
 
-const REGION_NAMES = new Intl.DisplayNames(['en'], { type: 'region' });
-
-const ALL_COUNTRIES: CountryOption[] = getCountries()
-  .map((code) => ({ code, name: REGION_NAMES.of(code) ?? code, dial: `+${getCountryCallingCode(code)}` }))
-  .sort((a, b) => a.name.localeCompare(b.name));
-
-/** The agency's usual countries, pinned to the top of the list in this order. */
-const TOP_COUNTRY_CODES: Country[] = ['SO', 'KE', 'DE', 'GB', 'US'];
+const ALL_COUNTRIES: CountryOption[] = COUNTRY_NAMES.map(({ code, name }) => ({
+  code,
+  name,
+  dial: `+${getCountryCallingCode(code)}`,
+}));
 
 const TOP_COUNTRIES = TOP_COUNTRY_CODES.flatMap((code) => ALL_COUNTRIES.filter((option) => option.code === code));
 const OTHER_COUNTRIES = ALL_COUNTRIES.filter((option) => !TOP_COUNTRY_CODES.includes(option.code));
@@ -64,22 +67,6 @@ function countryFromValue(value: string): Country | undefined {
     }
   }
   return best?.code;
-}
-
-function CountryFlag({ code, className }: { code: Country; className?: string }) {
-  const Flag = flags[code];
-  // The flag components take only a title, so the sizing lives on the wrapper.
-  return (
-    <span
-      className={cn(
-        'flex h-3.5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-[2px]',
-        '[&>svg]:h-full [&>svg]:w-full',
-        className,
-      )}
-    >
-      {Flag ? <Flag title={code} /> : <span className="text-muted-foreground text-[9px]">{code}</span>}
-    </span>
-  );
 }
 
 interface PhoneInputProps {
@@ -123,7 +110,7 @@ export function PhoneInput({ id, value, onChange, placeholder = 'Phone number', 
     <div className={cn('flex w-full', className)}>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger
-          aria-label={`Country: ${REGION_NAMES.of(country) ?? country}`}
+          aria-label={`Country: ${countryName(country)}`}
           className="border-input hover:bg-muted focus-visible:border-ring focus-visible:ring-ring/50 flex h-9 shrink-0 items-center gap-1 rounded-s-lg border border-e-0 px-2.5 outline-none transition-colors focus-visible:z-1 focus-visible:ring-3 dark:bg-input/30"
         >
           <CountryFlag code={country} />

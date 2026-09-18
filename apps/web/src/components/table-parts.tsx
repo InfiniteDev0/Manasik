@@ -104,8 +104,9 @@ interface TableTabsProps {
 }
 
 /**
- * Rounded, browser-style tabs across the top of a table card — one per
- * category. The active tab opens into the card below it.
+ * Folder tabs across the top of a table card — one per category, each with its
+ * own rounded outline like the dividers in a file folder. The active tab opens
+ * into the card below it.
  */
 export function TableTabs({ tabs, value, onValueChange, counts, label }: TableTabsProps) {
   return (
@@ -120,12 +121,13 @@ export function TableTabs({ tabs, value, onValueChange, counts, label }: TableTa
             aria-selected={active}
             onClick={() => onValueChange(tab.id)}
             className={cn(
-              // -mb-px lays the tab over the strip's bottom border, so the active
-              // one (bottom border in the card colour) joins the card seamlessly.
+              // -mb-px lays every tab over the strip's bottom border: the active
+              // one's bottom edge is the card colour, so it opens into the card;
+              // the others keep a bottom edge, so the line runs on under them.
               'relative -mb-px flex h-10 shrink-0 items-center gap-2 rounded-t-xl border px-4 text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/30',
               active
                 ? 'bg-card text-foreground border-border border-b-card font-medium'
-                : 'text-muted-foreground hover:bg-muted hover:text-foreground border-transparent',
+                : 'bg-muted text-muted-foreground border-border hover:bg-card/70 hover:text-foreground',
             )}
           >
             {tab.label}

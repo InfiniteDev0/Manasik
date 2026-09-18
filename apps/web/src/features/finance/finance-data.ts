@@ -1,3 +1,4 @@
+import { countryName } from '@/components/country-flag';
 import type { Currency } from '@/lib/currency';
 import { formatDayLabel } from '@/lib/format';
 
@@ -13,10 +14,11 @@ export interface ServiceField {
   name: string;
   label: string;
   /**
-   * 'airport' picks from the airport list; 'trip' is a departure and a return
+   * 'airport' picks from the airport list, 'country' from every country; 'trip'
+   * is a departure and a return
    * in one calendar — stored as `<name>` and `return` ('' for no return).
    */
-  type?: 'text' | 'date' | 'number' | 'airport' | 'trip';
+  type?: 'text' | 'date' | 'number' | 'airport' | 'trip' | 'country';
   placeholder?: string;
 }
 
@@ -39,7 +41,7 @@ export const SERVICES: { id: ServiceType; label: string; fields: ServiceField[] 
     id: 'visa',
     label: 'Visa',
     fields: [
-      { name: 'city', label: 'City', placeholder: 'e.g. Dubai' },
+      { name: 'country', label: 'Country', type: 'country', placeholder: 'Country' },
       { name: 'visaType', label: 'Visa type', placeholder: 'e.g. Tourist, 30 days' },
     ],
   },
@@ -93,6 +95,8 @@ export function describeService(service: ServiceType, details: Record<string, st
       parts[parts.length - 1] = `${parts[parts.length - 1]} → ${value}`;
     } else if (field.type === 'trip') {
       parts.push(tripText(value, details.return));
+    } else if (field.type === 'country') {
+      parts.push(countryName(value));
     } else if (field.type === 'date') {
       parts.push(formatDayLabel(value));
     } else if (field.name === 'travellers') {
@@ -121,7 +125,8 @@ export function serviceDetailLines(service: ServiceType, details: Record<string,
       lines.push(`Departure: ${formatDayLabel(value)}`);
       lines.push(`Return: ${details.return?.trim() ? formatDayLabel(details.return.trim()) : 'No return'}`);
     } else {
-      lines.push(`${field.label}: ${field.type === 'date' ? formatDayLabel(value) : value}`);
+      const shown = field.type === 'date' ? formatDayLabel(value) : field.type === 'country' ? countryName(value) : value;
+      lines.push(`${field.label}: ${shown}`);
     }
   }
   return lines;
@@ -213,7 +218,7 @@ export function nextNumber(prefix: string, existing: { number: string }[]): stri
 // yet. Fixed ids and dates, so the server and the browser render the same.
 
 const SAMPLE_TICKET_DETAILS = { airline: 'Qatar Airways', from: 'NBO', to: 'JED', departure: '2026-09-24', return: '2026-10-08' };
-const SAMPLE_VISA_DETAILS = { city: 'Dubai', visaType: 'Tourist, 30 days' };
+const SAMPLE_VISA_DETAILS = { country: 'AE', visaType: 'Tourist, 30 days' };
 const SAMPLE_PACKAGE_DETAILS = { package: 'Umrah, 14 nights', departure: '2026-10-05', travellers: '2' };
 
 export const SAMPLE_QUOTATIONS: Quotation[] = [

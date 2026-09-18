@@ -5,6 +5,7 @@ import { XIcon } from 'lucide-react';
 import * as React from 'react';
 
 import { AirportPicker } from '@/components/airport-picker';
+import { CountryPicker } from '@/components/country-picker';
 import { SingleDatePicker, TripDatePicker } from '@/components/date-picker';
 import { MoneyInput } from '@/components/money-input';
 import { DEFAULT_PHONE_VALUE, hasPhoneNumber, PhoneInput } from '@/components/phone-input';
@@ -81,6 +82,13 @@ export function QuotationForm({ onCreate, onCancel }: QuotationFormProps) {
         <FieldLabel htmlFor={id}>{field.label}</FieldLabel>
         {field.type === 'airport' ? (
           <AirportPicker
+            id={id}
+            placeholder={field.placeholder}
+            value={details[field.name] ?? ''}
+            onChange={(code) => setDetail(field.name, code)}
+          />
+        ) : field.type === 'country' ? (
+          <CountryPicker
             id={id}
             placeholder={field.placeholder}
             value={details[field.name] ?? ''}

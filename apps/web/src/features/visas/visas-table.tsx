@@ -11,10 +11,11 @@ import {
 } from '@tanstack/react-table';
 import { format, parse } from 'date-fns';
 import { gooeyToast } from 'goey-toast';
-import { ChevronDownIcon, ChevronsUpDownIcon, ChevronUpIcon } from 'lucide-react';
+import { BellRingIcon, CheckIcon, ChevronDownIcon, ChevronsUpDownIcon, ChevronUpIcon } from 'lucide-react';
 import { AnimatePresence, motion, Reorder } from 'motion/react';
 import * as React from 'react';
 
+import { CountryFlag, countryName } from '@/components/country-flag';
 import { DatePicker, EMPTY_DATE_PICKER_VALUE, getMonthValue, type DatePickerValue } from '@/components/date-picker';
 import { InversePanel, SectionHeader, SelectionBar, TableSearch, TableTabs } from '@/components/table-parts';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -28,6 +29,7 @@ import { VisaStatusBadge } from './visa-fields';
 import { VisaForm } from './visa-form';
 import { VisaSheet } from './visa-sheet';
 import {
+  brokerDue,
   SAMPLE_VISAS,
   VISA_CATEGORIES,
   visaMatchesDate,
@@ -51,6 +53,48 @@ function NameCell({ visa }: { visa: VisaRow }) {
         {initials || '?'}
       </span>
       <span className="text-foreground truncate font-medium">{visa.name || 'Unnamed'}</span>
+    </div>
+  );
+}
+
+/** Marks a visa's broker as paid; provided by the table. */
+const MarkBrokerPaidContext = React.createContext<(visaId: string) => void>(() => {});
+
+/**
+ * The broker and where their money stands: owed once the visa is approved
+ * (with a button to mark it paid), paid, or not due until approval.
+ */
+function BrokerCell({ visa }: { visa: VisaRow }) {
+  const markPaid = React.useContext(MarkBrokerPaidContext);
+
+  if (!visa.broker) {
+    return <span className="text-muted-foreground">—</span>;
+  }
+
+  return (
+    <div className="flex min-w-0 flex-col items-start gap-1">
+      <span className="text-foreground truncate font-medium">{visa.broker}</span>
+      {brokerDue(visa) ? (
+        <button
+          type="button"
+          // Pays the broker without opening the visa.
+          onClick={(event) => {
+            event.stopPropagation();
+            markPaid(visa.id);
+          }}
+          className="inline-flex h-5 items-center gap-1 rounded-full bg-amber-500/15 px-2 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-500/25 dark:text-amber-400"
+        >
+          <BellRingIcon className="size-3" />
+          Pay {formatMoney(visa.net, visa.currency)}
+        </button>
+      ) : visa.brokerPaid ? (
+        <span className="bg-ocean-green/10 text-ocean-green inline-flex h-5 items-center gap-1 rounded-full px-2 text-xs font-medium">
+          <CheckIcon className="size-3" />
+          Paid
+        </span>
+      ) : (
+        <span className="text-muted-foreground text-xs">Paid once approved</span>
+      )}
     </div>
   );
 }
@@ -105,11 +149,26 @@ const COLUMNS: ColumnDef<VisaRow>[] = [
     cell: ({ row }) => <VisaStatusBadge status={row.original.status} />,
   },
   {
-    id: 'city',
-    accessorKey: 'city',
-    header: 'City',
-    meta: { label: 'City', cell: { variant: 'short-text' } },
-    cell: ({ row }) => <span className="text-foreground">{row.original.city || '—'}</span>,
+    id: 'country',
+    accessorFn: (visa) => countryName(visa.country),
+    header: 'Country',
+    meta: { label: 'Country', cell: { variant: 'short-text' } },
+    cell: ({ row }) =>
+      row.original.country ? (
+        <span className="text-foreground flex items-center gap-2">
+          <CountryFlag code={row.original.country} />
+          <span className="truncate">{countryName(row.original.country)}</span>
+        </span>
+      ) : (
+        <span className="text-muted-foreground">—</span>
+      ),
+  },
+  {
+    id: 'broker',
+    accessorFn: (visa) => (visa.broker ? `${visa.broker}${visa.brokerPaid ? ' (paid)' : ''}` : ''),
+    header: 'Broker',
+    meta: { label: 'Broker', cell: { variant: 'short-text' } },
+    cell: ({ row }) => <BrokerCell visa={row.original} />,
   },
   // For the CSV export only — each amount below already shows its currency.
   {
@@ -265,6 +324,18 @@ export function VisasTable() {
     });
   };
 
+  const markBrokerPaid = (id: string) => {
+    setData((previous) => previous.map((visa) => (visa.id === id ? { ...visa, brokerPaid: true } : visa)));
+  };
+
+  // The reminder: once a visa is approved, its broker is owed the net amount.
+  const remindToPayBroker = (visa: VisaRow) => {
+    gooeyToast.warning(`Pay ${visa.broker}`, {
+      description: `${visa.name}'s visa is approved — the broker is owed ${formatMoney(visa.net, visa.currency)}.`,
+      action: { label: 'Mark paid', successLabel: 'Paid', onClick: () => markBrokerPaid(visa.id) },
+    });
+  };
+
   const createVisa = (visa: VisaRow) => {
     // Newest first. The search is cleared so the new visa isn't hidden by it.
     setData((previous) => [visa, ...previous]);
@@ -274,8 +345,11 @@ export function VisasTable() {
   };
 
   const saveVisa = (visa: VisaRow) => {
+    const before = data.find(({ id }) => id === visa.id);
     setData((previous) => previous.map((existing) => (existing.id === visa.id ? visa : existing)));
     setSheetOpen(false);
+    // Just approved (or the broker only now added): remind once.
+    if (brokerDue(visa) && !(before && brokerDue(before))) remindToPayBroker(visa);
   };
 
   const onlySelected = selectedRows.length === 1 ? selectedRows[0] : undefined;
@@ -291,188 +365,191 @@ export function VisasTable() {
         adding={adding}
       />
 
-      <div className="bg-card overflow-hidden rounded-xl border shadow-xs">
-        <TableTabs
-          tabs={VISA_CATEGORIES}
-          value={categoryId}
-          onValueChange={setCategoryId}
-          counts={counts}
-          label="Visa categories"
-        />
-
-        <div className="flex flex-wrap items-center justify-between gap-3 p-3">
-          <TableSearch
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder="Search visas"
-            label="Search visas"
+      {/* The Broker column's "Pay" buttons mark the broker paid through this. */}
+      <MarkBrokerPaidContext.Provider value={markBrokerPaid}>
+        <div className="bg-card overflow-hidden rounded-xl border shadow-xs">
+          <TableTabs
+            tabs={VISA_CATEGORIES}
+            value={categoryId}
+            onValueChange={setCategoryId}
+            counts={counts}
+            label="Visa categories"
           />
-          <DatePicker
-            value={dateFilter}
-            onChange={setPickedDate}
-            align="end"
-            className="bg-card h-9 shadow-xs"
-          />
+
+          <div className="flex flex-wrap items-center justify-between gap-3 p-3">
+            <TableSearch
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Search visas"
+              label="Search visas"
+            />
+            <DatePicker
+              value={dateFilter}
+              onChange={setPickedDate}
+              align="end"
+              className="bg-card h-9 shadow-xs"
+            />
+          </div>
+
+          {/* Add visa opens this space above the table and pushes the table down. */}
+          <AnimatePresence initial={false}>
+            {adding ? (
+              <motion.div
+                key="add-visa"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+                className="overflow-hidden"
+              >
+                <InversePanel>
+                  <VisaForm onCreate={createVisa} onCancel={() => setAdding(false)} />
+                </InversePanel>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+
+          <AnimatePresence initial={false}>
+            {selectedRows.length > 0 ? (
+              <motion.div
+                key="selection"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.18, ease: 'easeOut' }}
+                className="overflow-hidden"
+              >
+                <SelectionBar
+                  count={selectedRows.length}
+                  onEdit={onlySelected ? () => openSheet(onlySelected.original) : undefined}
+                  onExport={() =>
+                    exportTableToCsv(table, `visas-selected-${formatDateToString(new Date())}.csv`, selectedRows)
+                  }
+                  onDelete={() => deleteVisas(selectedRows.map((row) => row.original.id))}
+                  onClear={() => table.resetRowSelection()}
+                />
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+
+          {/* overflow-y-hidden: a row dragged past the ends is clipped instead of
+              growing a vertical scrollbar mid-drag. */}
+          <div className="scrollbar-pill overflow-x-auto overflow-y-hidden border-t">
+            <table className="w-full border-separate border-spacing-0 text-sm">
+              <thead>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <tr key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => {
+                      const numeric = header.column.columnDef.meta?.cell?.variant === 'number';
+                      const direction = header.column.getIsSorted();
+                      const label = flexRender(header.column.columnDef.header, header.getContext());
+                      return (
+                        <th
+                          key={header.id}
+                          scope="col"
+                          aria-sort={direction === 'asc' ? 'ascending' : direction === 'desc' ? 'descending' : undefined}
+                          className={cn(
+                            'text-muted-foreground h-11 border-b px-4 text-left align-middle text-[13px] font-normal whitespace-nowrap',
+                            numeric && 'text-right',
+                            header.column.id === 'select' && 'w-12 pe-0',
+                          )}
+                        >
+                          {header.column.getCanSort() ? (
+                            <button
+                              type="button"
+                              onClick={header.column.getToggleSortingHandler()}
+                              className="hover:text-foreground inline-flex items-center gap-1 transition-colors outline-none focus-visible:underline"
+                            >
+                              {label}
+                              <SortIcon direction={direction} />
+                            </button>
+                          ) : (
+                            label
+                          )}
+                        </th>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </thead>
+
+              <Reorder.Group
+                as="tbody"
+                axis="y"
+                values={rows.map((row) => row.id)}
+                onReorder={onReorder}
+                className="[&>tr:last-child>td]:border-b-0"
+              >
+                {rows.map((row) => (
+                  <Reorder.Item
+                    key={row.id}
+                    as="tr"
+                    value={row.id}
+                    layout="position"
+                    dragListener={canReorder}
+                    onDragStart={() => {
+                      justDraggedRef.current = true;
+                      setDraggingId(row.id);
+                    }}
+                    onDragEnd={() => {
+                      setDraggingId(null);
+                      setTimeout(() => {
+                        justDraggedRef.current = false;
+                      });
+                    }}
+                    onClick={() => {
+                      if (!justDraggedRef.current) openSheet(row.original);
+                    }}
+                    onKeyDown={(event: React.KeyboardEvent) => {
+                      if (event.key === 'Enter' && event.target === event.currentTarget) {
+                        openSheet(row.original);
+                      }
+                    }}
+                    tabIndex={0}
+                    aria-selected={row.getIsSelected()}
+                    className={cn(
+                      'relative transition-colors outline-none focus-visible:bg-muted [&>td]:border-b',
+                      row.getIsSelected() ? 'bg-vivid-cyan/6' : 'bg-card',
+                      'hover:bg-muted',
+                      canReorder ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
+                      // Lifted while dragging: solid cells so the rows it passes stay hidden underneath.
+                      draggingId === row.id && 'z-10 shadow-lg [&>td]:bg-card',
+                    )}
+                  >
+                    {row.getVisibleCells().map((cell) => {
+                      const numeric = cell.column.columnDef.meta?.cell?.variant === 'number';
+                      const isSelect = cell.column.id === 'select';
+                      return (
+                        <td
+                          key={cell.id}
+                          // The checkbox toggles selection only — it doesn't open the visa.
+                          onClick={isSelect ? (event) => event.stopPropagation() : undefined}
+                          onKeyDown={isSelect ? (event) => event.stopPropagation() : undefined}
+                          className={cn(
+                            'h-16 px-4 align-middle whitespace-nowrap',
+                            numeric && 'text-right',
+                            isSelect && 'w-12 pe-0',
+                          )}
+                        >
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      );
+                    })}
+                  </Reorder.Item>
+                ))}
+
+                {rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={visibleColumnCount} className="text-muted-foreground h-32 text-center text-sm">
+                      {data.length === 0 ? 'No visas yet.' : 'No visas match.'}
+                    </td>
+                  </tr>
+                ) : null}
+              </Reorder.Group>
+            </table>
+          </div>
         </div>
-
-        {/* Add visa opens this space above the table and pushes the table down. */}
-        <AnimatePresence initial={false}>
-          {adding ? (
-            <motion.div
-              key="add-visa"
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2, ease: 'easeOut' }}
-              className="overflow-hidden"
-            >
-              <InversePanel>
-                <VisaForm onCreate={createVisa} onCancel={() => setAdding(false)} />
-              </InversePanel>
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
-
-        <AnimatePresence initial={false}>
-          {selectedRows.length > 0 ? (
-            <motion.div
-              key="selection"
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.18, ease: 'easeOut' }}
-              className="overflow-hidden"
-            >
-              <SelectionBar
-                count={selectedRows.length}
-                onEdit={onlySelected ? () => openSheet(onlySelected.original) : undefined}
-                onExport={() =>
-                  exportTableToCsv(table, `visas-selected-${formatDateToString(new Date())}.csv`, selectedRows)
-                }
-                onDelete={() => deleteVisas(selectedRows.map((row) => row.original.id))}
-                onClear={() => table.resetRowSelection()}
-              />
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
-
-        {/* overflow-y-hidden: a row dragged past the ends is clipped instead of
-            growing a vertical scrollbar mid-drag. */}
-        <div className="scrollbar-pill overflow-x-auto overflow-y-hidden border-t">
-          <table className="w-full border-separate border-spacing-0 text-sm">
-            <thead>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => {
-                    const numeric = header.column.columnDef.meta?.cell?.variant === 'number';
-                    const direction = header.column.getIsSorted();
-                    const label = flexRender(header.column.columnDef.header, header.getContext());
-                    return (
-                      <th
-                        key={header.id}
-                        scope="col"
-                        aria-sort={direction === 'asc' ? 'ascending' : direction === 'desc' ? 'descending' : undefined}
-                        className={cn(
-                          'text-muted-foreground h-11 border-b px-4 text-left align-middle text-[13px] font-normal whitespace-nowrap',
-                          numeric && 'text-right',
-                          header.column.id === 'select' && 'w-12 pe-0',
-                        )}
-                      >
-                        {header.column.getCanSort() ? (
-                          <button
-                            type="button"
-                            onClick={header.column.getToggleSortingHandler()}
-                            className="hover:text-foreground inline-flex items-center gap-1 transition-colors outline-none focus-visible:underline"
-                          >
-                            {label}
-                            <SortIcon direction={direction} />
-                          </button>
-                        ) : (
-                          label
-                        )}
-                      </th>
-                    );
-                  })}
-                </tr>
-              ))}
-            </thead>
-
-            <Reorder.Group
-              as="tbody"
-              axis="y"
-              values={rows.map((row) => row.id)}
-              onReorder={onReorder}
-              className="[&>tr:last-child>td]:border-b-0"
-            >
-              {rows.map((row) => (
-                <Reorder.Item
-                  key={row.id}
-                  as="tr"
-                  value={row.id}
-                  layout="position"
-                  dragListener={canReorder}
-                  onDragStart={() => {
-                    justDraggedRef.current = true;
-                    setDraggingId(row.id);
-                  }}
-                  onDragEnd={() => {
-                    setDraggingId(null);
-                    setTimeout(() => {
-                      justDraggedRef.current = false;
-                    });
-                  }}
-                  onClick={() => {
-                    if (!justDraggedRef.current) openSheet(row.original);
-                  }}
-                  onKeyDown={(event: React.KeyboardEvent) => {
-                    if (event.key === 'Enter' && event.target === event.currentTarget) {
-                      openSheet(row.original);
-                    }
-                  }}
-                  tabIndex={0}
-                  aria-selected={row.getIsSelected()}
-                  className={cn(
-                    'relative transition-colors outline-none focus-visible:bg-muted [&>td]:border-b',
-                    row.getIsSelected() ? 'bg-vivid-cyan/6' : 'bg-card',
-                    'hover:bg-muted',
-                    canReorder ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
-                    // Lifted while dragging: solid cells so the rows it passes stay hidden underneath.
-                    draggingId === row.id && 'z-10 shadow-lg [&>td]:bg-card',
-                  )}
-                >
-                  {row.getVisibleCells().map((cell) => {
-                    const numeric = cell.column.columnDef.meta?.cell?.variant === 'number';
-                    const isSelect = cell.column.id === 'select';
-                    return (
-                      <td
-                        key={cell.id}
-                        // The checkbox toggles selection only — it doesn't open the visa.
-                        onClick={isSelect ? (event) => event.stopPropagation() : undefined}
-                        onKeyDown={isSelect ? (event) => event.stopPropagation() : undefined}
-                        className={cn(
-                          'h-16 px-4 align-middle whitespace-nowrap',
-                          numeric && 'text-right',
-                          isSelect && 'w-12 pe-0',
-                        )}
-                      >
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    );
-                  })}
-                </Reorder.Item>
-              ))}
-
-              {rows.length === 0 ? (
-                <tr>
-                  <td colSpan={visibleColumnCount} className="text-muted-foreground h-32 text-center text-sm">
-                    {data.length === 0 ? 'No visas yet.' : 'No visas match.'}
-                  </td>
-                </tr>
-              ) : null}
-            </Reorder.Group>
-          </table>
-        </div>
-      </div>
+      </MarkBrokerPaidContext.Provider>
 
       <VisaSheet
         open={sheetOpen}

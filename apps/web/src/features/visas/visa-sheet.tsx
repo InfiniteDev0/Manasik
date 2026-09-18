@@ -3,7 +3,9 @@
 import { Trash2Icon } from 'lucide-react';
 import * as React from 'react';
 
+import { CountryPicker } from '@/components/country-picker';
 import { CalculatedAmount, MoneyInput } from '@/components/money-input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -52,7 +54,7 @@ function VisaEditForm({ visa, onCancel, onSave, onDelete }: VisaEditFormProps) {
     onSave({
       ...draft,
       name: draft.name.trim(),
-      city: draft.city.trim(),
+      broker: draft.broker.trim(),
       paid,
       net,
       commission,
@@ -89,14 +91,31 @@ function VisaEditForm({ visa, onCancel, onSave, onDelete }: VisaEditFormProps) {
         </div>
 
         <div className="space-y-1.5">
-          <FieldLabel htmlFor="visa-city">City</FieldLabel>
+          <FieldLabel htmlFor="visa-country">Country</FieldLabel>
+          <CountryPicker
+            id="visa-country"
+            value={draft.country}
+            onChange={(country) => setDraft((current) => ({ ...current, country }))}
+          />
+        </div>
+
+        <div className="col-span-2 space-y-1.5">
+          <FieldLabel htmlFor="visa-broker">Broker</FieldLabel>
           <Input
-            id="visa-city"
-            placeholder="e.g. Dubai"
-            value={draft.city}
-            onChange={(event) => setDraft((current) => ({ ...current, city: event.target.value }))}
+            id="visa-broker"
+            placeholder="Who's processing it"
+            value={draft.broker}
+            onChange={(event) => setDraft((current) => ({ ...current, broker: event.target.value }))}
             className="h-9"
           />
+          {/* Ticked once the broker has been given their money. */}
+          <label className="text-muted-foreground flex items-center gap-2 pt-1 text-sm">
+            <Checkbox
+              checked={draft.brokerPaid}
+              onCheckedChange={(checked) => setDraft((current) => ({ ...current, brokerPaid: checked }))}
+            />
+            Broker has been paid
+          </label>
         </div>
 
         {/* The amounts share the visa's one currency. */}
