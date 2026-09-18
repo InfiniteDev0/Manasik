@@ -1,0 +1,135 @@
+spring:
+  application:
+    name: manasik-api
+  profiles:
+    default: dev
+
+  # Loads apps/api/.env as properties. `optional:` means the app still starts
+  # without it (CI, production), where real environment variables are used.
+  # This is native Spring Boot config import — no dotenv dependency needed.
+  config:
+    import: optional:file:./.env[.properties]
+
+  web:
+    error:
+      # Never leak stack traces or internal messages in the default error body.
+      # GlobalExceptionHandler produces the real responses.
+      # (Boot 4 moved these from `server.error.*` to `spring.web.error.*`.)
+      include-message: never
+      include-stacktrace: never
+      include-binding-errors: never
+
+  datasource:
+    # RUNTIME identity: manasik_app. Owns nothing, holds NOBYPASSRLS, so the
+    # V2 row-level-security policies actually apply to it. Connecting as
+    # `postgres` here would silently disable tenant isolation at the database
+    # level — verified 2026-08-10 that postgres holds BYPASSRLS on this project.
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      # Supabase's free tier has a low connection ceiling and the pooler is
+      # shared. A big local pool just starves other clients and yourself.
+      maximum-pool-size: ${DB_POOL_SIZE:5}
+      minimum-idle: 1
+      connection-timeout: 30000
+      # Below the pooler's own idle timeout, so we discard connections before
+      # it does and avoid "connection closed" surprises mid-request.
+      idle-timeout: 300000
+      max-lifetime: 900000
+
+  jpa:
+    # Flyway owns the schema (D1). `validate` makes Hibernate check that the
+    # entities match the migrated tables and fail loudly if they've drifted.
+    # Never set this to `update` or `create` — it would let Hibernate silently
+    # alter a schema Flyway believes it controls.
+    hibernate:
+      ddl-auto: validate
+    # Off deliberately. `open-in-view` keeps a database connection held for the
+    # entire request while the response serializes, which quietly exhausts a
+    # small pool and hides N+1 queries behind lazy loading in the view layer.
+    open-in-view: false
+    properties:
+      hibernate:
+        # Must match Flyway's default-schema, or `ddl-auto: validate` looks in
+        # `public`, finds nothing, and refuses to start.
+        default_schema: manasik
+        jdbc:
+          time_zone: UTC
+          batch_size: 25
+        order_inserts: true
+        order_updates: true
+        # Never enable in production — it logs every query.
+        format_sql: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    # MIGRATION identity: postgres. Owns the tables and needs DDL, which the
+    # runtime role deliberately lacks. Separate credentials mean the running
+    # application cannot alter the schema Flyway controls.
+    url: ${DB_URL}
+    user: ${FLYWAY_USERNAME}
+    password: ${FLYWAY_PASSWORD}
+    # Everything lives in `manasik`, NOT `public`.
+    #
+    # Supabase runs PostgREST over `public` and serves it over HTTPS with the
+    # anon key — which is public by design and ships in frontend bundles. Tables
+    # we deliberately exempt from RLS (users, otp_tokens, refresh_sessions, ...)
+    # would be world-readable there. A schema PostgREST doesn't know about is
+    # simply unreachable, with no dashboard toggle to undo it.
+    schemas: manasik
+    default-schema: manasik
+    create-schemas: true
+    # Fail rather than silently adopting a database that already has tables.
+    baseline-on-migrate: false
+    validate-on-migrate: true
+
+server:
+  port: ${SERVER_PORT:4000}
+  servlet:
+    # Every route is served under /v1 — the frontend's NEXT_PUBLIC_API_URL
+    # already points at http://localhost:4000/v1.
+    context-path: /v1
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # Deliberately narrow. Do not add `*` — that exposes /env, /beans and
+        # /heapdump, which leak configuration and memory contents.
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+  api-docs:
+    path: /api-docs
+
+manasik:
+  jwt:
+    # Two INDEPENDENT base64 secrets, each >= 32 bytes decoded. The app refuses
+    # to start if they are equal, missing, or too short — a weak or shared JWT
+    # key is not something to discover in production.
+    access-secret: ${JWT_ACCESS_SECRET}
+    refresh-secret: ${JWT_REFRESH_SECRET}
+    # Short-lived on purpose: an access token cannot be revoked, so its blast
+    # radius is bounded by its lifetime. Longevity comes from the refresh token,
+    # which CAN be revoked because it is backed by a refresh_sessions row.
+    access-ttl: 15m
+    refresh-ttl: 30d
+    issuer: manasik
+
+  cors:
+    # Comma-separated. Must be exact origins — a wildcard is incompatible with
+    # `allowCredentials: true`, which we need for the refresh-token cookie.
+    allowed-origins: ${CORS_ORIGIN:http://localhost:3000}
+
+logging:
+  level:
+    com.manasik.api: INFO

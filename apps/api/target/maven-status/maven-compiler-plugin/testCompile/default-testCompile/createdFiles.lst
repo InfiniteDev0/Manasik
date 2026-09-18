@@ -1,0 +1,3 @@
+com\manasik\api\tenancy\TenantIsolationIT.class
+com\manasik\api\ApiApplicationTests.class
+com\manasik\api\AbstractIntegrationTest.class
