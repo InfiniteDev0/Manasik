@@ -20,9 +20,10 @@ import {
   TableSearch,
   TableTabs,
 } from '@/components/table-parts';
+import { formatMoney, formatTotals } from '@/lib/currency';
 import { formatDateToString } from '@/lib/data-grid';
 import { exportTableToCsv } from '@/lib/export-csv';
-import { formatAmount, formatDayLabel } from '@/lib/format';
+import { formatDayLabel } from '@/lib/format';
 
 import { ExpenseForm } from './expense-form';
 import { EXPENSE_CATEGORIES, expenseCategoryLabel, type Expense } from './expenses-data';
@@ -83,11 +84,17 @@ const COLUMNS: ColumnDef<Expense>[] = [
     meta: { label: 'Reference' },
   },
   {
+    id: 'currency',
+    accessorKey: 'currency',
+    header: 'Currency',
+    meta: { label: 'Currency' },
+  },
+  {
     id: 'amount',
     accessorKey: 'amount',
     header: 'Amount',
     meta: { label: 'Amount', cell: { variant: 'number' } },
-    cell: ({ row }) => <span className="text-foreground font-medium tabular-nums">{formatAmount(row.original.amount)}</span>,
+    cell: ({ row }) => <span className="text-foreground font-medium tabular-nums">{formatMoney(row.original.amount, row.original.currency)}</span>,
   },
   {
     id: 'date',
@@ -98,9 +105,9 @@ const COLUMNS: ColumnDef<Expense>[] = [
   },
 ];
 
-// Payee and reference show as the second line of other columns, so their own
-// columns stay hidden — but they're still in the CSV export.
-const HIDDEN_COLUMNS = { payee: false, reference: false };
+// Payee and reference show as the second line of other columns, and the amount
+// shows its currency, so these columns stay hidden — but they're in the CSV export.
+const HIDDEN_COLUMNS = { payee: false, reference: false, currency: false };
 
 /**
  * Expenses: what the agency spends to run — rent, salaries, marketing,
@@ -157,7 +164,8 @@ export function ExpensesPage() {
 
   const rows = table.getRowModel().rows;
   const selectedRows = rows.filter((row) => row.getIsSelected());
-  const total = rows.reduce((sum, row) => sum + (row.original.amount ?? 0), 0);
+  // Per currency — USD and KSh never mix.
+  const total = formatTotals(rows.map((row) => row.original));
 
   const deleteExpenses = (ids: string[]) => {
     const removed = removeExpenses(ids);
@@ -227,7 +235,7 @@ export function ExpensesPage() {
           <span className="text-muted-foreground">
             Total of {rows.length} {rows.length === 1 ? 'expense' : 'expenses'}
           </span>
-          <span className="text-foreground font-semibold tabular-nums">{formatAmount(total)}</span>
+          <span className="text-foreground font-semibold tabular-nums">{total}</span>
         </div>
       </div>
     </div>

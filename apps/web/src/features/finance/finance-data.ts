@@ -1,3 +1,4 @@
+import type { Currency } from '@/lib/currency';
 import { formatDayLabel } from '@/lib/format';
 
 // Quotation → invoice → receipt. A customer asks for a service and gets a
@@ -11,7 +12,11 @@ export type ServiceType = 'ticket' | 'visa' | 'hotel' | 'package';
 export interface ServiceField {
   name: string;
   label: string;
-  type?: 'text' | 'date' | 'number';
+  /**
+   * 'airport' picks from the airport list; 'trip' is a departure and a return
+   * in one calendar — stored as `<name>` and `return` ('' for no return).
+   */
+  type?: 'text' | 'date' | 'number' | 'airport' | 'trip';
   placeholder?: string;
 }
 
@@ -25,9 +30,9 @@ export const SERVICES: { id: ServiceType; label: string; fields: ServiceField[] 
     label: 'Flight ticket',
     fields: [
       { name: 'airline', label: 'Airline', placeholder: 'e.g. Qatar Airways' },
-      { name: 'from', label: 'From', placeholder: 'e.g. NBO' },
-      { name: 'to', label: 'To', placeholder: 'e.g. JED' },
-      { name: 'departure', label: 'Departure', type: 'date', placeholder: 'Departure date' },
+      { name: 'from', label: 'From', type: 'airport', placeholder: 'From' },
+      { name: 'to', label: 'To', type: 'airport', placeholder: 'To' },
+      { name: 'departure', label: 'Departure — return', type: 'trip' },
     ],
   },
   {
@@ -63,6 +68,19 @@ export function serviceLabel(service: ServiceType): string {
   return SERVICES.find((option) => option.id === service)?.label ?? service;
 }
 
+/** Every key a service's details are kept under — a trip field adds `return`. */
+export function serviceDetailKeys(service: ServiceType): string[] {
+  const fields = SERVICES.find((option) => option.id === service)?.fields ?? [];
+  return fields.flatMap((field) => (field.type === 'trip' ? [field.name, 'return'] : [field.name]));
+}
+
+/** "Sep 24 → Oct 8, 2026" or "Sep 24, 2026 · No return". */
+function tripText(departure: string, returnDate: string | undefined): string {
+  return returnDate?.trim()
+    ? `${formatDayLabel(departure)} → ${formatDayLabel(returnDate.trim())}`
+    : `${formatDayLabel(departure)} · No return`;
+}
+
 /** The service's details in one line: "Qatar Airways · NBO → JED · Sep 24, 2026". */
 export function describeService(service: ServiceType, details: Record<string, string>): string {
   const fields = SERVICES.find((option) => option.id === service)?.fields ?? [];
@@ -73,6 +91,8 @@ export function describeService(service: ServiceType, details: Record<string, st
     if (field.name === 'to' && parts.length > 0 && details.from?.trim()) {
       // "NBO" + "JED" read better as one route.
       parts[parts.length - 1] = `${parts[parts.length - 1]} → ${value}`;
+    } else if (field.type === 'trip') {
+      parts.push(tripText(value, details.return));
     } else if (field.type === 'date') {
       parts.push(formatDayLabel(value));
     } else if (field.name === 'travellers') {
@@ -97,6 +117,9 @@ export function serviceDetailLines(service: ServiceType, details: Record<string,
     if (field.name === 'from') {
       const to = details.to?.trim();
       lines.push(`Route: ${to ? `${value} → ${to}` : value}`);
+    } else if (field.type === 'trip') {
+      lines.push(`Departure: ${formatDayLabel(value)}`);
+      lines.push(`Return: ${details.return?.trim() ? formatDayLabel(details.return.trim()) : 'No return'}`);
     } else {
       lines.push(`${field.label}: ${field.type === 'date' ? formatDayLabel(value) : value}`);
     }
@@ -116,6 +139,7 @@ export interface Quotation {
   phone: string;
   service: ServiceType;
   details: Record<string, string>;
+  currency: Currency;
   amount: number | null;
   /** Set once the customer goes ahead and the quotation is invoiced. */
   invoiceId: string | null;
@@ -146,6 +170,7 @@ export interface Invoice {
   phone: string;
   service: ServiceType;
   description: string;
+  currency: Currency;
   amount: number | null;
   /** The day the payment was confirmed; null while unpaid. */
   paidOn: string | null;
@@ -167,6 +192,7 @@ export interface Receipt {
   phone: string;
   service: ServiceType;
   description: string;
+  currency: Currency;
   amount: number | null;
   method: PaymentMethod | null;
 }
@@ -186,23 +212,23 @@ export function nextNumber(prefix: string, existing: { number: string }[]): stri
 // each step: receipted, invoiced but unpaid, and still open. Not saved anywhere
 // yet. Fixed ids and dates, so the server and the browser render the same.
 
-const SAMPLE_TICKET_DETAILS = { airline: 'Qatar Airways', from: 'NBO', to: 'JED', departure: '2026-09-24' };
+const SAMPLE_TICKET_DETAILS = { airline: 'Qatar Airways', from: 'NBO', to: 'JED', departure: '2026-09-24', return: '2026-10-08' };
 const SAMPLE_VISA_DETAILS = { city: 'Dubai', visaType: 'Tourist, 30 days' };
 const SAMPLE_PACKAGE_DETAILS = { package: 'Umrah, 14 nights', departure: '2026-10-05', travellers: '2' };
 
 export const SAMPLE_QUOTATIONS: Quotation[] = [
-  { id: 'qt-1', number: 'QT-0001', date: '2026-09-14', client: 'Amina Yusuf', phone: '+254 712 345 678', service: 'ticket', details: SAMPLE_TICKET_DETAILS, amount: 780, invoiceId: 'inv-1' },
-  { id: 'qt-2', number: 'QT-0002', date: '2026-09-15', client: 'Abdullahi Omar', phone: '+254 722 111 222', service: 'visa', details: SAMPLE_VISA_DETAILS, amount: 320, invoiceId: 'inv-2' },
-  { id: 'qt-3', number: 'QT-0003', date: '2026-09-17', client: 'Halima Ali', phone: '+254 733 555 010', service: 'package', details: SAMPLE_PACKAGE_DETAILS, amount: 4200, invoiceId: null },
+  { id: 'qt-1', number: 'QT-0001', date: '2026-09-14', client: 'Amina Yusuf', phone: '+254 712 345 678', service: 'ticket', details: SAMPLE_TICKET_DETAILS, currency: 'USD', amount: 780, invoiceId: 'inv-1' },
+  { id: 'qt-2', number: 'QT-0002', date: '2026-09-15', client: 'Abdullahi Omar', phone: '+254 722 111 222', service: 'visa', details: SAMPLE_VISA_DETAILS, currency: 'USD', amount: 320, invoiceId: 'inv-2' },
+  { id: 'qt-3', number: 'QT-0003', date: '2026-09-17', client: 'Halima Ali', phone: '+254 733 555 010', service: 'package', details: SAMPLE_PACKAGE_DETAILS, currency: 'USD', amount: 4200, invoiceId: null },
 ];
 
 export const SAMPLE_INVOICES: Invoice[] = [
-  { id: 'inv-1', number: 'INV-0001', date: '2026-09-15', quotationId: 'qt-1', quotationNumber: 'QT-0001', client: 'Amina Yusuf', phone: '+254 712 345 678', service: 'ticket', description: describeService('ticket', SAMPLE_TICKET_DETAILS), amount: 780, paidOn: '2026-09-15', method: 'mpesa', receiptId: 'rc-1' },
-  { id: 'inv-2', number: 'INV-0002', date: '2026-09-16', quotationId: 'qt-2', quotationNumber: 'QT-0002', client: 'Abdullahi Omar', phone: '+254 722 111 222', service: 'visa', description: describeService('visa', SAMPLE_VISA_DETAILS), amount: 320, paidOn: null, method: null, receiptId: null },
+  { id: 'inv-1', number: 'INV-0001', date: '2026-09-15', quotationId: 'qt-1', quotationNumber: 'QT-0001', client: 'Amina Yusuf', phone: '+254 712 345 678', service: 'ticket', description: describeService('ticket', SAMPLE_TICKET_DETAILS), currency: 'USD', amount: 780, paidOn: '2026-09-15', method: 'mpesa', receiptId: 'rc-1' },
+  { id: 'inv-2', number: 'INV-0002', date: '2026-09-16', quotationId: 'qt-2', quotationNumber: 'QT-0002', client: 'Abdullahi Omar', phone: '+254 722 111 222', service: 'visa', description: describeService('visa', SAMPLE_VISA_DETAILS), currency: 'USD', amount: 320, paidOn: null, method: null, receiptId: null },
 ];
 
 export const SAMPLE_RECEIPTS: Receipt[] = [
-  { id: 'rc-1', number: 'RC-0001', date: '2026-09-15', invoiceId: 'inv-1', invoiceNumber: 'INV-0001', quotationNumber: 'QT-0001', client: 'Amina Yusuf', phone: '+254 712 345 678', service: 'ticket', description: describeService('ticket', SAMPLE_TICKET_DETAILS), amount: 780, method: 'mpesa' },
+  { id: 'rc-1', number: 'RC-0001', date: '2026-09-15', invoiceId: 'inv-1', invoiceNumber: 'INV-0001', quotationNumber: 'QT-0001', client: 'Amina Yusuf', phone: '+254 712 345 678', service: 'ticket', description: describeService('ticket', SAMPLE_TICKET_DETAILS), currency: 'USD', amount: 780, method: 'mpesa' },
 ];
 
 // ─── Search ──────────────────────────────────────────────────────────────────

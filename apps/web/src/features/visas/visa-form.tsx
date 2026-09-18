@@ -3,8 +3,10 @@
 import { XIcon } from 'lucide-react';
 import * as React from 'react';
 
+import { MoneyInput } from '@/components/money-input';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import type { Currency } from '@/lib/currency';
 
 import { FieldLabel, VisaStatusSelect } from './visa-fields';
 import { newVisa, type VisaRow, type VisaStatus } from './visas-data';
@@ -21,6 +23,7 @@ interface FormState {
   name: string;
   status: VisaStatus;
   city: string;
+  currency: Currency;
   net: string;
   paid: string;
   commission: string;
@@ -28,7 +31,7 @@ interface FormState {
 
 /** Every field empty. The visa's date is the day it's created. */
 function emptyForm(): FormState {
-  return { name: '', status: 'pending', city: '', net: '', paid: '', commission: '' };
+  return { name: '', status: 'pending', city: '', currency: 'USD', net: '', paid: '', commission: '' };
 }
 
 interface VisaFormProps {
@@ -50,6 +53,7 @@ export function VisaForm({ onCreate, onCancel }: VisaFormProps) {
       name: form.name.trim(),
       status: form.status,
       city: form.city.trim(),
+      currency: form.currency,
       net: toNumber(form.net),
       paid: toNumber(form.paid),
       commission: toNumber(form.commission),
@@ -66,7 +70,8 @@ export function VisaForm({ onCreate, onCancel }: VisaFormProps) {
           placeholder="Client's full name"
           required
           value={form.name}
-          onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+          // Names are kept in capitals, like on a passport.
+          onChange={(event) => setForm((current) => ({ ...current, name: event.target.value.toUpperCase() }))}
           className="h-9 w-full"
         />
       </div>
@@ -91,19 +96,17 @@ export function VisaForm({ onCreate, onCancel }: VisaFormProps) {
         />
       </div>
 
+      {/* All three amounts share the visa's one currency — changing any changes it. */}
       {MONEY_FIELDS.map((field) => (
         <div key={field.name} className="space-y-1.5">
           <FieldLabel htmlFor={`new-visa-${field.name}`}>{field.label}</FieldLabel>
-          <Input
+          <MoneyInput
             id={`new-visa-${field.name}`}
-            type="number"
-            inputMode="decimal"
-            min={0}
-            step="0.01"
             placeholder={field.placeholder}
             value={form[field.name]}
-            onChange={(event) => setForm((current) => ({ ...current, [field.name]: event.target.value }))}
-            className="h-9 w-full"
+            onValueChange={(value) => setForm((current) => ({ ...current, [field.name]: value }))}
+            currency={form.currency}
+            onCurrencyChange={(currency) => setForm((current) => ({ ...current, currency }))}
           />
         </div>
       ))}

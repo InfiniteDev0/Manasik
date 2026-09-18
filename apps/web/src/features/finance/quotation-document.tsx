@@ -36,6 +36,7 @@ export function QuotationDocument({ quotation }: { quotation: Quotation }) {
         },
       ]}
       total={quotation.amount}
+      currency={quotation.currency}
     >
       <div className="mt-[8mm] space-y-1 text-[12px] leading-relaxed text-neutral-600">
         <p className="font-bold text-neutral-900">Terms:</p>

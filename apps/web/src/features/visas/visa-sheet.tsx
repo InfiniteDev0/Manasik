@@ -3,6 +3,7 @@
 import { Trash2Icon } from 'lucide-react';
 import * as React from 'react';
 
+import { MoneyInput } from '@/components/money-input';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -68,7 +69,8 @@ function VisaEditForm({ visa, onCancel, onSave, onDelete }: VisaEditFormProps) {
             id="visa-name"
             required
             value={draft.name}
-            onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
+            // Names are kept in capitals, like on a passport.
+            onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value.toUpperCase() }))}
             className="h-9"
           />
         </div>
@@ -93,18 +95,16 @@ function VisaEditForm({ visa, onCancel, onSave, onDelete }: VisaEditFormProps) {
           />
         </div>
 
+        {/* All three amounts share the visa's one currency. */}
         {MONEY_FIELDS.map((field) => (
-          <div key={field.name} className="space-y-1.5">
+          <div key={field.name} className="col-span-2 space-y-1.5">
             <FieldLabel htmlFor={`visa-${field.name}`}>{field.label}</FieldLabel>
-            <Input
+            <MoneyInput
               id={`visa-${field.name}`}
-              type="number"
-              inputMode="decimal"
-              min={0}
-              step="0.01"
               value={money[field.name]}
-              onChange={(event) => setMoney((current) => ({ ...current, [field.name]: event.target.value }))}
-              className="h-9 tabular-nums"
+              onValueChange={(value) => setMoney((current) => ({ ...current, [field.name]: value }))}
+              currency={draft.currency}
+              onCurrencyChange={(currency) => setDraft((current) => ({ ...current, currency }))}
             />
           </div>
         ))}

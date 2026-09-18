@@ -18,9 +18,10 @@ import * as React from 'react';
 import { DatePicker, EMPTY_DATE_PICKER_VALUE, getMonthValue, type DatePickerValue } from '@/components/date-picker';
 import { InversePanel, SectionHeader, SelectionBar, TableSearch, TableTabs } from '@/components/table-parts';
 import { Checkbox } from '@/components/ui/checkbox';
+import { formatMoney } from '@/lib/currency';
 import { formatDateToString } from '@/lib/data-grid';
 import { exportTableToCsv } from '@/lib/export-csv';
-import { formatAmount, formatDayLabel } from '@/lib/format';
+import { formatDayLabel } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 import { VisaStatusBadge } from './visa-fields';
@@ -62,7 +63,7 @@ function moneyColumn(id: 'net' | 'paid' | 'commission', label: string): ColumnDe
     meta: { label, cell: { variant: 'number', min: 0, step: 0.01 } },
     cell: ({ row }) => (
       <span className={cn('tabular-nums', id === 'net' ? 'text-foreground font-medium' : 'text-muted-foreground')}>
-        {formatAmount(row.original[id])}
+        {formatMoney(row.original[id], row.original.currency)}
       </span>
     ),
   };
@@ -108,6 +109,14 @@ const COLUMNS: ColumnDef<VisaRow>[] = [
     header: 'City',
     meta: { label: 'City', cell: { variant: 'short-text' } },
     cell: ({ row }) => <span className="text-foreground">{row.original.city || '—'}</span>,
+  },
+  // For the CSV export only — each amount below already shows its currency.
+  {
+    id: 'currency',
+    accessorKey: 'currency',
+    header: 'Currency',
+    meta: { label: 'Currency' },
+    enableSorting: false,
   },
   moneyColumn('net', 'Net amount'),
   moneyColumn('paid', 'Paid amount'),
@@ -191,6 +200,7 @@ export function VisasTable() {
     onGlobalFilterChange: setSearchQuery,
     // The search looks at the whole visa, not one column at a time.
     globalFilterFn: (row, _columnId, query: string) => visaMatchesSearch(row.original, query),
+    initialState: { columnVisibility: { currency: false } },
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),

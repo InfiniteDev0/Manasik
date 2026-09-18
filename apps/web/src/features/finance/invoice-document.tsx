@@ -25,6 +25,7 @@ export function InvoiceDocument({ invoice }: { invoice: Invoice }) {
         },
       ]}
       total={invoice.amount}
+      currency={invoice.currency}
     >
       {invoice.paidOn ? (
         <p className="mt-4 self-end text-[12px] font-medium text-[#0a8f7a]">

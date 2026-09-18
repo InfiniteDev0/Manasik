@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { formatAmount } from '@/lib/format';
+import { formatMoney } from '@/lib/currency';
 
 import { PAYMENT_METHODS, paymentMethodLabel, type Invoice, type PaymentMethod } from './finance-data';
 
@@ -34,7 +34,7 @@ export function PaymentDialog({ open, invoice, onOpenChange, onConfirm }: Paymen
         <DialogHeader>
           <DialogTitle>Confirm payment</DialogTitle>
           <DialogDescription>
-            {invoice.number} · {invoice.client} · {formatAmount(invoice.amount)}
+            {invoice.number} · {invoice.client} · {formatMoney(invoice.amount, invoice.currency)}
           </DialogDescription>
         </DialogHeader>
 

@@ -1,3 +1,5 @@
+import type { Currency } from '@/lib/currency';
+
 import type { PaymentMethod } from './finance-data';
 
 // The agency's running costs — what it spends to operate, not what it pays
@@ -28,6 +30,7 @@ export interface Expense {
   category: ExpenseCategory;
   /** Who was paid: the landlord, Safaricom, a driver… */
   payee: string;
+  currency: Currency;
   amount: number | null;
   method: PaymentMethod;
   /** The M-Pesa code, bank reference or receipt number, to find it again. */
@@ -37,9 +40,9 @@ export interface Expense {
 // Placeholder rows so the page has something to show. Not saved anywhere yet.
 // Fixed ids and dates, so the server and the browser render the same.
 export const SAMPLE_EXPENSES: Expense[] = [
-  { id: 'exp-1', date: '2026-09-01', description: 'Office rent — September', category: 'rent', payee: 'Eastleigh Properties', amount: 1200, method: 'bank', reference: 'TRF-88213' },
-  { id: 'exp-2', date: '2026-09-02', description: 'Internet', category: 'rent', payee: 'Safaricom', amount: 60, method: 'mpesa', reference: 'SIK4Q2LM7P' },
-  { id: 'exp-3', date: '2026-09-05', description: 'Umrah season ads', category: 'marketing', payee: 'Meta', amount: 150, method: 'card', reference: '' },
-  { id: 'exp-4', date: '2026-09-10', description: 'Taxi to the Saudi embassy', category: 'transport', payee: 'Driver', amount: 25, method: 'cash', reference: '' },
-  { id: 'exp-5', date: '2026-09-12', description: 'Printer paper and ink', category: 'office', payee: 'Text Book Centre', amount: 42, method: 'mpesa', reference: 'SIL1B9XK2D' },
+  { id: 'exp-1', date: '2026-09-01', description: 'Office rent — September', category: 'rent', payee: 'Eastleigh Properties', currency: 'KES', amount: 85000, method: 'bank', reference: 'TRF-88213' },
+  { id: 'exp-2', date: '2026-09-02', description: 'Internet', category: 'rent', payee: 'Safaricom', currency: 'KES', amount: 6000, method: 'mpesa', reference: 'SIK4Q2LM7P' },
+  { id: 'exp-3', date: '2026-09-05', description: 'Umrah season ads', category: 'marketing', payee: 'Meta', currency: 'USD', amount: 150, method: 'card', reference: '' },
+  { id: 'exp-4', date: '2026-09-10', description: 'Taxi to the Saudi embassy', category: 'transport', payee: 'Driver', currency: 'KES', amount: 1500, method: 'cash', reference: '' },
+  { id: 'exp-5', date: '2026-09-12', description: 'Printer paper and ink', category: 'office', payee: 'Text Book Centre', currency: 'KES', amount: 4200, method: 'mpesa', reference: 'SIL1B9XK2D' },
 ];

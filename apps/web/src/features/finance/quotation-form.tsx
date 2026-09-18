@@ -4,15 +4,18 @@ import { parse } from 'date-fns';
 import { XIcon } from 'lucide-react';
 import * as React from 'react';
 
-import { SingleDatePicker } from '@/components/date-picker';
+import { AirportPicker } from '@/components/airport-picker';
+import { SingleDatePicker, TripDatePicker } from '@/components/date-picker';
+import { MoneyInput } from '@/components/money-input';
 import { DEFAULT_PHONE_VALUE, hasPhoneNumber, PhoneInput } from '@/components/phone-input';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import type { Currency } from '@/lib/currency';
 import { formatDateToString } from '@/lib/data-grid';
 
-import { SERVICES, serviceLabel, type ServiceField, type ServiceType } from './finance-data';
+import { SERVICES, serviceDetailKeys, serviceLabel, type ServiceField, type ServiceType } from './finance-data';
 import type { NewQuotation } from './finance-store';
 
 function FieldLabel({ htmlFor, children }: { htmlFor: string; children: React.ReactNode }) {
@@ -43,6 +46,7 @@ export function QuotationForm({ onCreate, onCancel }: QuotationFormProps) {
   const [service, setService] = React.useState<ServiceType>('ticket');
   const [details, setDetails] = React.useState<Record<string, string>>({});
   const [amount, setAmount] = React.useState('');
+  const [currency, setCurrency] = React.useState<Currency>('USD');
 
   const fields = SERVICES.find((option) => option.id === service)?.fields ?? [];
 
@@ -57,8 +61,11 @@ export function QuotationForm({ onCreate, onCancel }: QuotationFormProps) {
       service,
       // Only this service's fields — not leftovers from one picked earlier.
       details: Object.fromEntries(
-        fields.map(({ name }) => [name, details[name]?.trim() ?? '']).filter(([, value]) => value),
+        serviceDetailKeys(service)
+          .map((key) => [key, details[key]?.trim() ?? ''])
+          .filter(([, value]) => value),
       ),
+      currency,
       amount: amount.trim() === '' ? null : Number(amount),
     });
     setClient('');
@@ -72,7 +79,24 @@ export function QuotationForm({ onCreate, onCancel }: QuotationFormProps) {
     return (
       <div key={`${service}-${field.name}`} className="space-y-1.5">
         <FieldLabel htmlFor={id}>{field.label}</FieldLabel>
-        {field.type === 'date' ? (
+        {field.type === 'airport' ? (
+          <AirportPicker
+            id={id}
+            placeholder={field.placeholder}
+            value={details[field.name] ?? ''}
+            onChange={(code) => setDetail(field.name, code)}
+          />
+        ) : field.type === 'trip' ? (
+          <TripDatePicker
+            id={id}
+            departure={details[field.name] ?? ''}
+            returnDate={details.return ?? ''}
+            onChange={(departure, returnDate) =>
+              setDetails((current) => ({ ...current, [field.name]: departure, return: returnDate }))
+            }
+            className="h-9"
+          />
+        ) : field.type === 'date' ? (
           <SingleDatePicker
             id={id}
             placeholder={field.placeholder}
@@ -104,7 +128,8 @@ export function QuotationForm({ onCreate, onCancel }: QuotationFormProps) {
           placeholder="Client's full name"
           required
           value={client}
-          onChange={(event) => setClient(event.target.value)}
+          // Names are kept in capitals, like on a passport.
+          onChange={(event) => setClient(event.target.value.toUpperCase())}
           className="h-9 w-full"
         />
       </div>
@@ -137,16 +162,13 @@ export function QuotationForm({ onCreate, onCancel }: QuotationFormProps) {
 
       <div className="space-y-1.5">
         <FieldLabel htmlFor="new-quotation-amount">Amount</FieldLabel>
-        <Input
+        <MoneyInput
           id="new-quotation-amount"
-          type="number"
-          inputMode="decimal"
-          min={0}
-          step="0.01"
           placeholder="Price you're quoting"
           value={amount}
-          onChange={(event) => setAmount(event.target.value)}
-          className="h-9 w-full"
+          onValueChange={setAmount}
+          currency={currency}
+          onCurrencyChange={setCurrency}
         />
       </div>
 

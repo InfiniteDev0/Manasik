@@ -4,7 +4,7 @@ import { format, parse } from 'date-fns';
 import { Marcellus } from 'next/font/google';
 import type * as React from 'react';
 
-import { formatAmount } from '@/lib/format';
+import { formatMoney, type Currency } from '@/lib/currency';
 import { cn } from '@/lib/utils';
 
 import { AGENCY, AGENCY_INITIALS } from './agency';
@@ -15,10 +15,6 @@ const titleFont = Marcellus({ subsets: ['latin'], weight: '400' });
 /** "2026-09-16" → "16 September, 2026". */
 export function longDate(value: string): string {
   return format(parse(value, 'yyyy-MM-dd', new Date()), 'd MMMM, yyyy');
-}
-
-export function money(value: number | null): string {
-  return `${AGENCY.currency} ${formatAmount(value)}`;
 }
 
 export interface DocumentLine {
@@ -39,6 +35,8 @@ interface DocumentPageProps {
   recipient: { name: string; phone: string };
   lines: DocumentLine[];
   total: number | null;
+  /** What every amount on the page is in. */
+  currency: Currency;
   /** Anything under the table — a paid note, the quotation's terms. */
   children?: React.ReactNode;
 }
@@ -50,7 +48,16 @@ interface DocumentPageProps {
  * like paper; `.print-area` and `.document-page` (globals.css) make it print as
  * exactly one A4 page.
  */
-export function DocumentPage({ title, meta, recipientLabel, recipient, lines, total, children }: DocumentPageProps) {
+export function DocumentPage({
+  title,
+  meta,
+  recipientLabel,
+  recipient,
+  lines,
+  total,
+  currency,
+  children,
+}: DocumentPageProps) {
   return (
     <article
       className="document-page print-area relative flex h-[297mm] w-[210mm] shrink-0 flex-col overflow-hidden bg-white px-[20mm] pt-[18mm] text-neutral-900"
@@ -124,10 +131,10 @@ export function DocumentPage({ title, meta, recipientLabel, recipient, lines, to
                   </p>
                 ))}
               </td>
-              <td className="px-4 pt-5 text-right align-top tabular-nums">{money(line.price)}</td>
+              <td className="px-4 pt-5 text-right align-top tabular-nums">{formatMoney(line.price, currency)}</td>
               <td className="px-4 pt-5 text-center align-top tabular-nums">{line.quantity}</td>
               <td className="px-4 pt-5 text-right align-top tabular-nums">
-                {money(line.price === null ? null : line.price * line.quantity)}
+                {formatMoney(line.price === null ? null : line.price * line.quantity, currency)}
               </td>
             </tr>
           ))}
@@ -139,7 +146,7 @@ export function DocumentPage({ title, meta, recipientLabel, recipient, lines, to
           <tr className="border-y border-[#4db8a7]">
             <td colSpan={2} />
             <td className="h-[12mm] px-4 text-center font-bold">Total</td>
-            <td className="px-4 text-right font-bold tabular-nums">{money(total)}</td>
+            <td className="px-4 text-right font-bold tabular-nums">{formatMoney(total, currency)}</td>
           </tr>
         </tfoot>
       </table>

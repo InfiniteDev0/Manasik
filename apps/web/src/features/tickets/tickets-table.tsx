@@ -18,9 +18,10 @@ import * as React from 'react';
 import { EMPTY_DATE_PICKER_VALUE, getMonthValue, type DatePickerValue } from '@/components/date-picker';
 import { InversePanel, SectionHeader, SelectionBar, TableTabs } from '@/components/table-parts';
 import { Checkbox } from '@/components/ui/checkbox';
+import { formatMoney } from '@/lib/currency';
 import { formatDateToString } from '@/lib/data-grid';
 import { exportTableToCsv } from '@/lib/export-csv';
-import { formatAmount, formatDayLabel } from '@/lib/format';
+import { formatDayLabel } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 import { TicketForm } from './ticket-form';
@@ -67,11 +68,14 @@ function ClientCell({ ticket }: { ticket: TicketRow }) {
 
 // ─── Columns ─────────────────────────────────────────────────────────────────
 
-// Phone, route and ref are shown as the second line of another column, so their
-// own columns stay hidden — but they still exist for the CSV export.
-const HIDDEN_COLUMNS = { phone: false, route: false, reference: false };
+// Phone, route, return, ref and currency are shown inside other columns, so
+// their own columns stay hidden — but they still exist for the CSV export.
+const HIDDEN_COLUMNS = { phone: false, route: false, returnDate: false, reference: false, currency: false };
 
-function hiddenColumn(id: 'phone' | 'route' | 'reference', label: string): ColumnDef<TicketRow> {
+function hiddenColumn(
+  id: 'phone' | 'route' | 'returnDate' | 'reference' | 'currency',
+  label: string,
+): ColumnDef<TicketRow> {
   return {
     id,
     accessorKey: id,
@@ -88,8 +92,9 @@ function moneyColumn(id: 'collected' | 'commission' | 'net', label: string): Col
     header: label,
     meta: { label, cell: { variant: 'number', min: 0, step: 0.01 } },
     cell: ({ row }) => (
-      <span className={cn('tabular-nums', id === 'net' ? 'text-foreground font-medium' : 'text-muted-foreground')}>
-        {formatAmount(row.original[id])}
+      // The commission — what the agency keeps — stands out.
+      <span className={cn('tabular-nums', id === 'commission' ? 'text-foreground font-medium' : 'text-muted-foreground')}>
+        {formatMoney(row.original[id], row.original.currency)}
       </span>
     ),
   };
@@ -138,13 +143,22 @@ const COLUMNS: ColumnDef<TicketRow>[] = [
     accessorKey: 'departure',
     header: 'Departure',
     meta: { label: 'Departure', cell: { variant: 'date' } },
-    cell: ({ row }) => (
-      <span className="text-foreground">{row.original.departure ? formatDayLabel(row.original.departure) : '—'}</span>
-    ),
+    cell: ({ row }) =>
+      row.original.departure ? (
+        <TwoLineCell
+          primary={formatDayLabel(row.original.departure)}
+          secondary={row.original.returnDate ? `Return ${formatDayLabel(row.original.returnDate)}` : 'No return'}
+        />
+      ) : (
+        <span className="text-muted-foreground">—</span>
+      ),
   },
+  hiddenColumn('returnDate', 'Return'),
+  hiddenColumn('currency', 'Currency'),
+  // Collected from the client − net sent to the airline = the commission.
   moneyColumn('collected', 'Collected'),
+  moneyColumn('net', 'Net (airline)'),
   moneyColumn('commission', 'Commission'),
-  moneyColumn('net', 'Net'),
   {
     id: 'pnr',
     accessorKey: 'pnr',
@@ -154,7 +168,7 @@ const COLUMNS: ColumnDef<TicketRow>[] = [
     cell: ({ row }) => (
       <TwoLineCell
         primary={<span className="font-mono tracking-wide uppercase">{row.original.pnr || '—'}</span>}
-        secondary={row.original.reference || 'No ref'}
+        secondary={row.original.reference ? `Ref: ${row.original.reference}` : 'No ref'}
       />
     ),
   },

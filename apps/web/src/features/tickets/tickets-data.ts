@@ -1,4 +1,5 @@
 import { matchesDateRange, type DatePickerValue } from '@/components/date-picker';
+import type { Currency } from '@/lib/currency';
 import { formatDateToString } from '@/lib/data-grid';
 
 /** One ticket sold to a client. Dates are `yyyy-mm-dd`. */
@@ -9,12 +10,17 @@ export interface TicketRow {
   airline: string;
   route: string;
   departure: string;
+  /** The flight back, or '' for no return (one way). */
+  returnDate: string;
   phone: string;
+  /** What the amounts below are in. */
+  currency: Currency;
   /** Money collected from the client. */
   collected: number | null;
   commission: number | null;
   net: number | null;
   pnr: string;
+  /** Who referred the client — a person's name. */
   reference: string;
 }
 
@@ -27,7 +33,9 @@ export function newTicket(): TicketRow {
     airline: '',
     route: '',
     departure: '',
+    returnDate: '',
     phone: '',
+    currency: 'USD',
     collected: null,
     commission: null,
     net: null,
@@ -40,9 +48,9 @@ export function newTicket(): TicketRow {
 // Fixed ids and dates (not newTicket()): this module runs on the server and in
 // the browser, and random or clock-based values would differ between the two.
 export const SAMPLE_TICKETS: TicketRow[] = [
-  { id: 'sample-1', date: '2026-09-17', client: 'Amina Yusuf', airline: 'Qatar Airways', route: 'NBO → JED', departure: '2026-09-24', phone: '+254 712 345 678', collected: 780, commission: 40, net: 740, pnr: 'QX7K2L', reference: 'TK-0001' },
-  { id: 'sample-2', date: '2026-09-17', client: 'Abdullahi Omar', airline: 'Emirates', route: 'NBO → DXB', departure: '2026-09-30', phone: '+254 722 111 222', collected: 520, commission: 25, net: 495, pnr: 'EM4P9Z', reference: 'TK-0002' },
-  { id: 'sample-3', date: '2026-09-16', client: 'Halima Ali', airline: 'Kenya Airways', route: 'NBO → MBA', departure: '2026-09-19', phone: '+254 733 555 010', collected: 120, commission: 8, net: 112, pnr: 'KQ2M8R', reference: 'TK-0003' },
+  { id: 'sample-1', date: '2026-09-17', client: 'Amina Yusuf', airline: 'Qatar Airways', route: 'NBO → JED', departure: '2026-09-24', returnDate: '2026-10-08', phone: '+254 712 345 678', currency: 'USD', collected: 780, commission: 40, net: 740, pnr: 'QX7K2L', reference: 'Hassan Abdi' },
+  { id: 'sample-2', date: '2026-09-17', client: 'Abdullahi Omar', airline: 'Emirates', route: 'NBO → DXB', departure: '2026-09-30', returnDate: '', phone: '+254 722 111 222', currency: 'USD', collected: 520, commission: 25, net: 495, pnr: 'EM4P9Z', reference: 'Fatuma Noor' },
+  { id: 'sample-3', date: '2026-09-16', client: 'Halima Ali', airline: 'Kenya Airways', route: 'NBO → MBA', departure: '2026-09-19', returnDate: '2026-09-22', phone: '+254 733 555 010', currency: 'KES', collected: 12000, commission: 800, net: 11200, pnr: 'KQ2M8R', reference: '' },
 ];
 
 /**
@@ -63,6 +71,8 @@ export function ticketMatchesSearch(ticket: TicketRow, query: string): boolean {
     ticket.reference,
     ticket.date,
     ticket.departure,
+    ticket.returnDate,
+    ticket.currency,
     ticket.collected,
     ticket.commission,
     ticket.net,

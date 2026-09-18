@@ -148,6 +148,128 @@ export function SingleDatePicker({
   );
 }
 
+const toDay = (value: string) => (value ? parse(value, 'yyyy-MM-dd', new Date()) : undefined);
+const fromDay = (date: Date) => format(date, 'yyyy-MM-dd');
+
+/** "Sep 24 → Oct 8, 2026", "Dec 28, 2026 → Jan 5, 2027", "Sep 24, 2026 · No return"… */
+function tripLabel(departure: string, returnDate: string, roundTrip: boolean): string | null {
+  const out = toDay(departure);
+  if (!out) return null;
+  const back = toDay(returnDate);
+  if (back) {
+    const sameYear = out.getFullYear() === back.getFullYear();
+    return `${format(out, sameYear ? 'MMM d' : 'MMM d, yyyy')} → ${format(back, 'MMM d, yyyy')}`;
+  }
+  return `${format(out, 'MMM d, yyyy')} ${roundTrip ? '→ …' : '· No return'}`;
+}
+
+interface TripDatePickerProps {
+  id?: string;
+  /** `yyyy-mm-dd`, or '' before one is picked. */
+  departure: string;
+  /** `yyyy-mm-dd`, or '' for no return (a one-way trip). */
+  returnDate: string;
+  onChange: (departure: string, returnDate: string) => void;
+  placeholder?: string;
+  className?: string;
+}
+
+/**
+ * Departure and return in one calendar: pick the day out, then the day back.
+ * For a one-way trip, switch to No return and pick just the departure.
+ */
+export function TripDatePicker({
+  id,
+  departure,
+  returnDate,
+  onChange,
+  placeholder = 'Departure — return',
+  className,
+}: TripDatePickerProps) {
+  const [open, setOpen] = React.useState(false);
+  // A saved trip with a departure but no return is one-way; a new one starts as a return trip.
+  const [roundTrip, setRoundTrip] = React.useState(Boolean(returnDate) || !departure);
+  const label = tripLabel(departure, returnDate, roundTrip);
+  const out = toDay(departure);
+
+  const switchTo = (next: boolean) => {
+    setRoundTrip(next);
+    if (!next && returnDate) onChange(departure, '');
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        render={
+          <Button
+            id={id}
+            variant="outline"
+            className={cn('w-full justify-start font-normal', !label && 'text-muted-foreground', className)}
+          />
+        }
+      >
+        <CalendarIcon />
+        <span className="truncate">{label ?? placeholder}</span>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto gap-0 p-0" align="start">
+        <div className="flex items-center justify-between gap-4 border-b p-2">
+          <div className="bg-muted flex rounded-lg p-0.5" role="group" aria-label="Trip type">
+            {[
+              { value: true, label: 'Return' },
+              { value: false, label: 'No return' },
+            ].map((option) => (
+              <button
+                key={option.label}
+                type="button"
+                aria-pressed={roundTrip === option.value}
+                onClick={() => switchTo(option.value)}
+                className={cn(
+                  'rounded-md px-3 py-1 text-xs transition-colors',
+                  roundTrip === option.value
+                    ? 'bg-card text-foreground shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <span className="text-muted-foreground pe-1 text-xs">
+            {roundTrip ? 'Pick the day out, then the day back' : 'Pick the day out'}
+          </span>
+        </div>
+
+        {roundTrip ? (
+          <Calendar
+            mode="range"
+            numberOfMonths={2}
+            defaultMonth={out}
+            selected={{ from: out, to: toDay(returnDate) }}
+            onSelect={(range) => {
+              const from = range?.from;
+              // The first click can come back as a one-day range; that's just the departure.
+              const to = from && range?.to && range.to > from ? range.to : undefined;
+              onChange(from ? fromDay(from) : '', to ? fromDay(to) : '');
+              if (to) setOpen(false);
+            }}
+          />
+        ) : (
+          <Calendar
+            mode="single"
+            defaultMonth={out}
+            selected={out}
+            onSelect={(date) => {
+              if (!date) return;
+              onChange(fromDay(date), '');
+              setOpen(false);
+            }}
+          />
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function formatLabel(picked: DatePickerValue) {
   if (picked.mode === 'single') {
     return picked.value ? format(picked.value, 'PPP') : 'Pick a date';

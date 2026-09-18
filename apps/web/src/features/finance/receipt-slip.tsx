@@ -4,14 +4,10 @@ import { format, parse } from 'date-fns';
 import { MapPinIcon, PlaneIcon } from 'lucide-react';
 import type * as React from 'react';
 
-import { formatAmount } from '@/lib/format';
+import { formatMoney } from '@/lib/currency';
 
 import { AGENCY } from './agency';
 import { paymentMethodLabel, serviceLabel, type Receipt } from './finance-data';
-
-function money(value: number | null): string {
-  return `${AGENCY.currency} ${formatAmount(value)}`;
-}
 
 /** A label on the left, its value pushed to the right. */
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
@@ -70,7 +66,7 @@ export function ReceiptSlip({ receipt }: { receipt: Receipt }) {
       <DashedRule />
 
       <section>
-        <Row label={serviceLabel(receipt.service)}>{money(receipt.amount)}</Row>
+        <Row label={serviceLabel(receipt.service)}>{formatMoney(receipt.amount, receipt.currency)}</Row>
         {receipt.description ? <p className="mt-0.5 text-[9.5px] text-neutral-600">{receipt.description}</p> : null}
       </section>
 
@@ -78,7 +74,7 @@ export function ReceiptSlip({ receipt }: { receipt: Receipt }) {
 
       <section className="space-y-1">
         <Row label="PAID BY:">{paymentMethodLabel(receipt.method)}</Row>
-        <Row label="TOTAL:">{money(receipt.amount)}</Row>
+        <Row label="TOTAL:">{formatMoney(receipt.amount, receipt.currency)}</Row>
       </section>
 
       <footer className="mt-auto flex flex-col items-center gap-3 text-center">

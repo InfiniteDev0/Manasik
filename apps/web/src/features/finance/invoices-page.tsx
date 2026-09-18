@@ -17,9 +17,10 @@ import { DatePicker, matchesDateRange, useMonthDateFilter } from '@/components/d
 import { SectionHeader, SelectionBar, SlideDown, TableSearch, TableTabs } from '@/components/table-parts';
 import { Button } from '@/components/ui/button';
 import { WORKSPACE_PATH } from '@/features/workspace/navigation';
+import { formatMoney } from '@/lib/currency';
 import { formatDateToString } from '@/lib/data-grid';
 import { exportTableToCsv } from '@/lib/export-csv';
-import { formatAmount, formatDayLabel } from '@/lib/format';
+import { formatDayLabel } from '@/lib/format';
 
 import { matchesWords, paymentMethodLabel, serviceLabel, type Invoice, type Receipt } from './finance-data';
 import { ClientCell, DocNumber, ServiceCell, StatusPill } from './finance-parts';
@@ -122,12 +123,20 @@ const COLUMNS: ColumnDef<Invoice>[] = [
     sortingFn: (a, b) => serviceLabel(a.original.service).localeCompare(serviceLabel(b.original.service)),
     cell: ({ row }) => <ServiceCell service={row.original.service} description={row.original.description} />,
   },
+  // For the CSV export only — the amount already shows its currency.
+  {
+    id: 'currency',
+    accessorKey: 'currency',
+    header: 'Currency',
+    meta: { label: 'Currency' },
+    enableSorting: false,
+  },
   {
     id: 'amount',
     accessorKey: 'amount',
     header: 'Amount',
     meta: { label: 'Amount', cell: { variant: 'number' } },
-    cell: ({ row }) => <span className="text-foreground font-medium tabular-nums">{formatAmount(row.original.amount)}</span>,
+    cell: ({ row }) => <span className="text-foreground font-medium tabular-nums">{formatMoney(row.original.amount, row.original.currency)}</span>,
   },
   {
     id: 'status',
@@ -208,6 +217,7 @@ export function InvoicesPage() {
         query,
       );
     },
+    initialState: { columnVisibility: { currency: false } },
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),

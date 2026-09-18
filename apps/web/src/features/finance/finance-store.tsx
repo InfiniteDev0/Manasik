@@ -25,7 +25,7 @@ interface FinanceState {
 }
 
 /** What the customer asked for; the number, date and id are filled in. */
-export type NewQuotation = Pick<Quotation, 'client' | 'phone' | 'service' | 'details' | 'amount'>;
+export type NewQuotation = Pick<Quotation, 'client' | 'phone' | 'service' | 'details' | 'currency' | 'amount'>;
 
 /** Expenses taken out, with where they were — enough to put them back. */
 export type RemovedExpenses = { expense: Expense; index: number }[];
@@ -89,6 +89,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       phone: quotation.phone,
       service: quotation.service,
       description: describeService(quotation.service, quotation.details),
+      currency: quotation.currency,
       amount: quotation.amount,
       paidOn: null,
       method: null,
@@ -131,6 +132,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       phone: invoice.phone,
       service: invoice.service,
       description: invoice.description,
+      currency: invoice.currency,
       amount: invoice.amount,
       method: invoice.method,
     };

@@ -1,58 +1,47 @@
 'use client';
 
-import { parse } from 'date-fns';
 import { XIcon } from 'lucide-react';
 import * as React from 'react';
 
-import { SingleDatePicker } from '@/components/date-picker';
+import { AirportPicker } from '@/components/airport-picker';
+import { TripDatePicker } from '@/components/date-picker';
+import { MoneyInput } from '@/components/money-input';
 import { DEFAULT_PHONE_VALUE, hasPhoneNumber, PhoneInput } from '@/components/phone-input';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { formatDateToString } from '@/lib/data-grid';
+import { formatMoney, type Currency } from '@/lib/currency';
 
 import { newTicket, type TicketRow } from './tickets-data';
 
-type Field =
-  | 'client'
-  | 'phone'
-  | 'airline'
-  | 'from'
-  | 'to'
-  | 'departure'
-  | 'collected'
-  | 'commission'
-  | 'pnr';
-
-interface FieldSpec {
-  name: Field;
-  label: string;
-  type?: string;
-  placeholder?: string;
+function FieldLabel({ htmlFor, children }: { htmlFor: string; children: React.ReactNode }) {
+  return (
+    <Label htmlFor={htmlFor} className="text-muted-foreground text-xs">
+      {children}
+    </Label>
+  );
 }
 
-// The Route cell sits between these two groups — it holds two inputs, so it's
-// rendered on its own below.
-const FIELDS_BEFORE_ROUTE: FieldSpec[] = [
-  { name: 'client', label: 'Client', placeholder: "Client's full name" },
-  { name: 'phone', label: 'Phone', type: 'tel', placeholder: '712 345 678' },
-  { name: 'airline', label: 'Airline', placeholder: 'e.g. Qatar Airways' },
-];
-
-const FIELDS_AFTER_ROUTE: FieldSpec[] = [
-  { name: 'departure', label: 'Departure', type: 'date', placeholder: 'Departure date' },
-  { name: 'collected', label: 'Collected', type: 'number', placeholder: 'Paid by client' },
-  { name: 'commission', label: 'Commission', type: 'number', placeholder: 'Your cut' },
-  { name: 'pnr', label: 'PNR', placeholder: 'e.g. QX7K2L' },
-];
-
-/** `yyyy-mm-dd` (how a ticket stores its dates) → a Date for the calendar. */
-function toDate(value: string): Date | undefined {
-  return value ? parse(value, 'yyyy-MM-dd', new Date()) : undefined;
+interface FormState {
+  client: string;
+  phone: string;
+  airline: string;
+  from: string;
+  to: string;
+  departure: string;
+  /** '' for no return. */
+  returnDate: string;
+  currency: Currency;
+  collected: string;
+  /** What's sent to the airline. The commission is what's left: collected − net. */
+  net: string;
+  pnr: string;
+  /** Who referred the client. */
+  reference: string;
 }
 
 /** Every field empty. The ticket's own date is the day it's created. */
-function emptyForm(): Record<Field, string> {
+function emptyForm(): FormState {
   return {
     client: '',
     phone: DEFAULT_PHONE_VALUE,
@@ -60,10 +49,20 @@ function emptyForm(): Record<Field, string> {
     from: '',
     to: '',
     departure: '',
+    returnDate: '',
+    currency: 'USD',
     collected: '',
-    commission: '',
+    net: '',
     pnr: '',
+    reference: '',
   };
+}
+
+const toNumber = (value: string) => (value.trim() === '' ? null : Number(value));
+
+/** Collected − airline net, once both are in. */
+function commissionOf(collected: number | null, net: number | null): number | null {
+  return collected === null || net === null ? null : collected - net;
 }
 
 interface TicketFormProps {
@@ -75,48 +74,15 @@ interface TicketFormProps {
 export function TicketForm({ onCreate, onCancel }: TicketFormProps) {
   const [form, setForm] = React.useState(emptyForm);
 
-  const setField = (name: Field, value: string) => setForm((current) => ({ ...current, [name]: value }));
+  const set = <K extends keyof FormState>(name: K, value: FormState[K]) =>
+    setForm((current) => ({ ...current, [name]: value }));
 
-  const field = (spec: FieldSpec) => (
-    <div key={spec.name} className="space-y-1.5">
-      <Label htmlFor={`new-ticket-${spec.name}`} className="text-muted-foreground text-xs">
-        {spec.label}
-      </Label>
-      {spec.name === 'phone' ? (
-        <PhoneInput
-          id={`new-ticket-${spec.name}`}
-          placeholder={spec.placeholder}
-          value={form.phone}
-          onChange={(phone) => setField('phone', phone)}
-        />
-      ) : spec.type === 'date' ? (
-        <SingleDatePicker
-          id={`new-ticket-${spec.name}`}
-          placeholder={spec.placeholder}
-          value={toDate(form[spec.name])}
-          onChange={(date) => setField(spec.name, date ? formatDateToString(date) : '')}
-          className="h-9"
-        />
-      ) : (
-        <Input
-          id={`new-ticket-${spec.name}`}
-          type={spec.type ?? 'text'}
-          placeholder={spec.placeholder}
-          required={spec.name === 'client'}
-          {...(spec.type === 'number' ? { inputMode: 'decimal' as const, min: 0, step: '0.01' } : {})}
-          value={form[spec.name]}
-          onChange={(event) => setField(spec.name, event.target.value)}
-          className="h-9 w-full"
-        />
-      )}
-    </div>
-  );
+  const collected = toNumber(form.collected);
+  const net = toNumber(form.net);
+  const commission = commissionOf(collected, net);
 
   const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const toNumber = (value: string) => (value.trim() === '' ? null : Number(value));
-    const collected = toNumber(form.collected);
-    const commission = toNumber(form.commission);
 
     // newTicket() dates it today — that's the ticket's created date.
     onCreate({
@@ -127,48 +93,150 @@ export function TicketForm({ onCreate, onCancel }: TicketFormProps) {
       airline: form.airline.trim(),
       route: [form.from.trim(), form.to.trim()].filter(Boolean).join(' → '),
       departure: form.departure,
+      returnDate: form.returnDate,
+      currency: form.currency,
       collected,
+      net,
       commission,
-      // What's left after the commission, once there's something to work out.
-      net: collected === null ? null : collected - (commission ?? 0),
       pnr: form.pnr.trim().toUpperCase(),
+      reference: form.reference.trim(),
     });
     setForm(emptyForm());
   };
 
   return (
     <form onSubmit={onSubmit} className="grid grid-cols-2 gap-3 border-t p-4 md:grid-cols-3 xl:grid-cols-5">
-      {FIELDS_BEFORE_ROUTE.map(field)}
+      <div className="space-y-1.5">
+        <FieldLabel htmlFor="new-ticket-client">Client</FieldLabel>
+        <Input
+          id="new-ticket-client"
+          placeholder="Client's full name"
+          required
+          value={form.client}
+          // Names are kept in capitals, like on a passport.
+          onChange={(event) => set('client', event.target.value.toUpperCase())}
+          className="h-9 w-full"
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <FieldLabel htmlFor="new-ticket-phone">Phone</FieldLabel>
+        <PhoneInput
+          id="new-ticket-phone"
+          placeholder="712 345 678"
+          value={form.phone}
+          onChange={(phone) => set('phone', phone)}
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <FieldLabel htmlFor="new-ticket-airline">Airline</FieldLabel>
+        <Input
+          id="new-ticket-airline"
+          placeholder="e.g. Qatar Airways"
+          value={form.airline}
+          onChange={(event) => set('airline', event.target.value)}
+          className="h-9 w-full"
+        />
+      </div>
 
       {/* Route: where the client flies from and to, in one cell. */}
       <div className="space-y-1.5">
-        <Label htmlFor="new-ticket-from" className="text-muted-foreground text-xs">
-          Route
-        </Label>
+        <FieldLabel htmlFor="new-ticket-from">Route</FieldLabel>
         <div className="flex items-center gap-2">
-          <Input
+          <AirportPicker
             id="new-ticket-from"
             aria-label="Flying from"
             placeholder="From"
             value={form.from}
-            onChange={(event) => setField('from', event.target.value)}
-            className="h-9 min-w-0 flex-1 uppercase"
+            onChange={(code) => set('from', code)}
+            className="flex-1"
           />
           <span aria-hidden className="text-muted-foreground">
             —
           </span>
-          <Input
+          <AirportPicker
             id="new-ticket-to"
             aria-label="Flying to"
             placeholder="To"
             value={form.to}
-            onChange={(event) => setField('to', event.target.value)}
-            className="h-9 min-w-0 flex-1 uppercase"
+            onChange={(code) => set('to', code)}
+            className="flex-1"
           />
         </div>
       </div>
 
-      {FIELDS_AFTER_ROUTE.map(field)}
+      <div className="space-y-1.5">
+        <FieldLabel htmlFor="new-ticket-departure">Departure — return</FieldLabel>
+        <TripDatePicker
+          id="new-ticket-departure"
+          departure={form.departure}
+          returnDate={form.returnDate}
+          onChange={(departure, returnDate) => setForm((current) => ({ ...current, departure, returnDate }))}
+          className="h-9"
+        />
+      </div>
+
+      {/* The amounts share one currency — changing either changes the ticket's. */}
+      <div className="space-y-1.5">
+        <FieldLabel htmlFor="new-ticket-collected">Collected</FieldLabel>
+        <MoneyInput
+          id="new-ticket-collected"
+          placeholder="Paid by client"
+          value={form.collected}
+          onValueChange={(value) => set('collected', value)}
+          currency={form.currency}
+          onCurrencyChange={(currency) => set('currency', currency)}
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <FieldLabel htmlFor="new-ticket-net">Net (airline)</FieldLabel>
+        <MoneyInput
+          id="new-ticket-net"
+          placeholder="Sent to the airline"
+          value={form.net}
+          onValueChange={(value) => set('net', value)}
+          currency={form.currency}
+          onCurrencyChange={(currency) => set('currency', currency)}
+        />
+      </div>
+
+      {/* Not typed — it's whatever is left of the collected money after the airline's net. */}
+      <div className="space-y-1.5">
+        <FieldLabel htmlFor="new-ticket-commission">Commission</FieldLabel>
+        <output
+          id="new-ticket-commission"
+          className="bg-muted/50 text-foreground flex h-9 items-center justify-between rounded-lg border px-2.5 text-sm tabular-nums"
+        >
+          <span className={commission === null ? 'text-muted-foreground' : undefined}>
+            {commission === null ? 'Collected − net' : formatMoney(commission, form.currency)}
+          </span>
+          <span className="text-muted-foreground text-xs">auto</span>
+        </output>
+      </div>
+
+      <div className="space-y-1.5">
+        <FieldLabel htmlFor="new-ticket-pnr">PNR</FieldLabel>
+        <Input
+          id="new-ticket-pnr"
+          placeholder="e.g. QX7K2L"
+          value={form.pnr}
+          onChange={(event) => set('pnr', event.target.value)}
+          className="h-9 w-full uppercase placeholder:normal-case"
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <FieldLabel htmlFor="new-ticket-reference">Ref</FieldLabel>
+        <Input
+          id="new-ticket-reference"
+          placeholder="Who referred the client"
+          value={form.reference}
+          onChange={(event) => set('reference', event.target.value)}
+          className="h-9 w-full"
+        />
+      </div>
 
       <div className="flex items-end">
         <Button type="submit" size="lg" className="w-full">

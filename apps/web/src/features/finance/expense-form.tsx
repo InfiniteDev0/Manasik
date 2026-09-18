@@ -5,10 +5,12 @@ import { XIcon } from 'lucide-react';
 import * as React from 'react';
 
 import { SingleDatePicker } from '@/components/date-picker';
+import { MoneyInput } from '@/components/money-input';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import type { Currency } from '@/lib/currency';
 import { formatDateToString } from '@/lib/data-grid';
 
 import { EXPENSE_CATEGORIES, expenseCategoryLabel, type Expense, type ExpenseCategory } from './expenses-data';
@@ -25,6 +27,7 @@ function FieldLabel({ htmlFor, children }: { htmlFor: string; children: React.Re
 interface FormState {
   description: string;
   category: ExpenseCategory;
+  currency: Currency;
   amount: string;
   payee: string;
   method: PaymentMethod;
@@ -40,6 +43,7 @@ function emptyForm(): FormState {
   return {
     description: '',
     category: 'other',
+    currency: 'KES',
     amount: '',
     payee: '',
     method: 'cash',
@@ -65,6 +69,7 @@ export function ExpenseForm({ onCreate, onCancel }: ExpenseFormProps) {
     onCreate({
       description: form.description.trim(),
       category: form.category,
+      currency: form.currency,
       amount: form.amount.trim() === '' ? null : Number(form.amount),
       payee: form.payee.trim(),
       method: form.method,
@@ -109,17 +114,14 @@ export function ExpenseForm({ onCreate, onCancel }: ExpenseFormProps) {
 
       <div className="space-y-1.5">
         <FieldLabel htmlFor="new-expense-amount">Amount</FieldLabel>
-        <Input
+        <MoneyInput
           id="new-expense-amount"
-          type="number"
-          inputMode="decimal"
-          min={0}
-          step="0.01"
           placeholder="How much was paid"
           required
           value={form.amount}
-          onChange={(event) => set('amount', event.target.value)}
-          className="h-9 w-full"
+          onValueChange={(value) => set('amount', value)}
+          currency={form.currency}
+          onCurrencyChange={(currency) => set('currency', currency)}
         />
       </div>
 
