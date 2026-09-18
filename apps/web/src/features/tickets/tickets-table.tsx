@@ -16,7 +16,7 @@ import { AnimatePresence, motion, Reorder } from 'motion/react';
 import * as React from 'react';
 
 import { EMPTY_DATE_PICKER_VALUE, getMonthValue, type DatePickerValue } from '@/components/date-picker';
-import { SectionHeader, SelectionBar, TableTabs } from '@/components/table-parts';
+import { InversePanel, SectionHeader, SelectionBar, TableTabs } from '@/components/table-parts';
 import { Checkbox } from '@/components/ui/checkbox';
 import { formatDateToString } from '@/lib/data-grid';
 import { exportTableToCsv } from '@/lib/export-csv';
@@ -367,7 +367,9 @@ export function TicketsTable() {
               transition={{ duration: 0.2, ease: 'easeOut' }}
               className="overflow-hidden"
             >
-              <TicketForm onCreate={createTicket} onCancel={() => setAdding(false)} />
+              <InversePanel>
+                <TicketForm onCreate={createTicket} onCancel={() => setAdding(false)} />
+              </InversePanel>
             </motion.div>
           ) : null}
         </AnimatePresence>

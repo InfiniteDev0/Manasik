@@ -4,7 +4,9 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+/* Dark styles apply inside .dark — except inside a .light panel, which shows the
+   light theme even on a dark page (see InversePanel in components/table-parts). */
+@custom-variant dark (&:is(.dark *):not(:is(.light *)));
 
 /* Manasik brand palette → utilities like bg-vivid-cyan, text-ocean-green.
    Vivid Cyan is the teal of the palette swatch and the "Create New Tour"
@@ -89,7 +91,9 @@ p, span{
   font-family: 'Outfit';
 }
 
-:root {
+/* .light too: a panel can take the light theme on a dark page. */
+:root,
+.light {
    --background: oklch(96.158% 0.00563 84.446);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);

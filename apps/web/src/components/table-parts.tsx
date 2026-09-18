@@ -6,6 +6,7 @@ import type * as React from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useTheme } from '@/features/theme/use-theme';
 import { cn } from '@/lib/utils';
 
 // The pieces every workspace table is built from: its page header, the category
@@ -44,6 +45,23 @@ export function SectionHeader({ title, description, onExport, addLabel, onAdd, a
           </Button>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+// ─── Inverse panel ───────────────────────────────────────────────────────────
+
+/**
+ * Shows its contents in the opposite theme to the page — dark on a light page,
+ * light on a dark one — so the add form stands apart from the table under it.
+ * Inputs and buttons inside follow the panel's theme, not the page's.
+ */
+export function InversePanel({ children }: { children: React.ReactNode }) {
+  const { theme } = useTheme();
+  const inverse = theme === 'dark' ? 'light' : 'dark';
+  return (
+    <div className={cn(inverse, inverse === 'dark' ? 'scheme-dark' : 'scheme-light', 'bg-card text-foreground')}>
+      {children}
     </div>
   );
 }

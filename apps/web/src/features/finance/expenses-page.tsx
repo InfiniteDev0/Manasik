@@ -12,7 +12,14 @@ import * as React from 'react';
 
 import { DataTable, selectColumn, TwoLineCell } from '@/components/data-table';
 import { DatePicker, matchesDateRange, useMonthDateFilter } from '@/components/date-picker';
-import { SectionHeader, SelectionBar, SlideDown, TableSearch, TableTabs } from '@/components/table-parts';
+import {
+  InversePanel,
+  SectionHeader,
+  SelectionBar,
+  SlideDown,
+  TableSearch,
+  TableTabs,
+} from '@/components/table-parts';
 import { formatDateToString } from '@/lib/data-grid';
 import { exportTableToCsv } from '@/lib/export-csv';
 import { formatAmount, formatDayLabel } from '@/lib/format';
@@ -189,15 +196,17 @@ export function ExpensesPage() {
         </div>
 
         <SlideDown open={adding}>
-          <ExpenseForm
-            onCancel={() => setAdding(false)}
-            onCreate={(expense) => {
-              addExpense(expense);
-              setSearchQuery('');
-              setAdding(false);
-              gooeyToast.success('Expense saved');
-            }}
-          />
+          <InversePanel>
+            <ExpenseForm
+              onCancel={() => setAdding(false)}
+              onCreate={(expense) => {
+                addExpense(expense);
+                setSearchQuery('');
+                setAdding(false);
+                gooeyToast.success('Expense saved');
+              }}
+            />
+          </InversePanel>
         </SlideDown>
 
         <SlideDown open={selectedRows.length > 0}>

@@ -14,7 +14,14 @@ import * as React from 'react';
 
 import { DataTable, selectColumn } from '@/components/data-table';
 import { DatePicker, matchesDateRange, useMonthDateFilter } from '@/components/date-picker';
-import { SectionHeader, SelectionBar, SlideDown, TableSearch, TableTabs } from '@/components/table-parts';
+import {
+  InversePanel,
+  SectionHeader,
+  SelectionBar,
+  SlideDown,
+  TableSearch,
+  TableTabs,
+} from '@/components/table-parts';
 import { Button } from '@/components/ui/button';
 import { WORKSPACE_PATH } from '@/features/workspace/navigation';
 import { formatDateToString } from '@/lib/data-grid';
@@ -208,15 +215,17 @@ export function QuotationsPage() {
         </div>
 
         <SlideDown open={adding}>
-          <QuotationForm
-            onCancel={() => setAdding(false)}
-            onCreate={(input) => {
-              const quotation = addQuotation(input);
-              setSearchQuery('');
-              setAdding(false);
-              gooeyToast.success(`Quotation ${quotation.number} saved`);
-            }}
-          />
+          <InversePanel>
+            <QuotationForm
+              onCancel={() => setAdding(false)}
+              onCreate={(input) => {
+                const quotation = addQuotation(input);
+                setSearchQuery('');
+                setAdding(false);
+                gooeyToast.success(`Quotation ${quotation.number} saved`);
+              }}
+            />
+          </InversePanel>
         </SlideDown>
 
         <SlideDown open={selectedRows.length > 0}>

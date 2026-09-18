@@ -7,11 +7,13 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
+import { PrinterIcon } from 'lucide-react';
 import * as React from 'react';
 
 import { DataTable, selectColumn } from '@/components/data-table';
 import { DatePicker, matchesDateRange, useMonthDateFilter } from '@/components/date-picker';
 import { SectionHeader, SelectionBar, SlideDown, TableSearch, TableTabs } from '@/components/table-parts';
+import { Button } from '@/components/ui/button';
 import { formatDateToString } from '@/lib/data-grid';
 import { exportTableToCsv } from '@/lib/export-csv';
 import { formatAmount, formatDayLabel } from '@/lib/format';
@@ -22,6 +24,23 @@ import { useFinance } from './finance-store';
 import { ReceiptDialog } from './receipt-dialog';
 
 const TABS = [{ id: 'all', label: 'All receipts', matches: () => true }];
+
+/** Prints the receipt straight away (clicking the row instead just shows it). */
+function PrintReceiptButton({ receipt }: { receipt: Receipt }) {
+  const [printing, setPrinting] = React.useState<Receipt | null>(null);
+
+  return (
+    // Keeps the click — and the dialog's clicks, which bubble up through React —
+    // from also opening the row's own receipt view.
+    <div onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
+      <Button variant="outline" size="sm" onClick={() => setPrinting(receipt)}>
+        <PrinterIcon />
+        Print
+      </Button>
+      <ReceiptDialog receipt={printing} onClose={() => setPrinting(null)} printOnOpen />
+    </div>
+  );
+}
 
 const COLUMNS: ColumnDef<Receipt>[] = [
   selectColumn<Receipt>('receipt'),
@@ -72,6 +91,12 @@ const COLUMNS: ColumnDef<Receipt>[] = [
     header: 'Date printed',
     meta: { label: 'Date printed' },
     cell: ({ row }) => <span className="text-muted-foreground">{formatDayLabel(row.original.date)}</span>,
+  },
+  {
+    id: 'actions',
+    header: () => <span className="sr-only">Actions</span>,
+    enableSorting: false,
+    cell: ({ row }) => <PrintReceiptButton receipt={row.original} />,
   },
 ];
 

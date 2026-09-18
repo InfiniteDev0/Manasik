@@ -12,6 +12,7 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
+  CommandSeparator,
 } from '@/components/ui/command';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -26,9 +27,18 @@ interface CountryOption {
 
 const REGION_NAMES = new Intl.DisplayNames(['en'], { type: 'region' });
 
-const COUNTRIES: CountryOption[] = getCountries()
+const ALL_COUNTRIES: CountryOption[] = getCountries()
   .map((code) => ({ code, name: REGION_NAMES.of(code) ?? code, dial: `+${getCountryCallingCode(code)}` }))
   .sort((a, b) => a.name.localeCompare(b.name));
+
+/** The agency's usual countries, pinned to the top of the list in this order. */
+const TOP_COUNTRY_CODES: Country[] = ['SO', 'KE', 'DE', 'GB', 'US'];
+
+const TOP_COUNTRIES = TOP_COUNTRY_CODES.flatMap((code) => ALL_COUNTRIES.filter((option) => option.code === code));
+const OTHER_COUNTRIES = ALL_COUNTRIES.filter((option) => !TOP_COUNTRY_CODES.includes(option.code));
+
+/** Top countries first — so they also win when a dial code is shared (+1 is the US, +44 the UK). */
+const COUNTRIES: CountryOption[] = [...TOP_COUNTRIES, ...OTHER_COUNTRIES];
 
 /** Where the agency is, so a new number starts on +254. */
 export const DEFAULT_PHONE_COUNTRY: Country = 'KE';
@@ -41,7 +51,7 @@ export function hasPhoneNumber(value: string): boolean {
   return /\d/.test(value.replace(/^\s*\+\d+/, ''));
 }
 
-/** The country a number starts with — the longest matching dial code wins. */
+/** The country a number starts with — the longest matching dial code wins; on a tie, the one listed first. */
 function countryFromValue(value: string): Country | undefined {
   const dial = /^\s*(\+\d+)/.exec(value)?.[1];
   if (!dial) {
@@ -124,19 +134,24 @@ export function PhoneInput({ id, value, onChange, placeholder = 'Phone number', 
             <CommandInput placeholder="Search country" />
             <CommandList className="max-h-64">
               <CommandEmpty>No country found.</CommandEmpty>
-              <CommandGroup>
-                {COUNTRIES.map((option) => (
-                  <CommandItem
-                    key={option.code}
-                    value={`${option.name} ${option.dial}`}
-                    onSelect={() => onCountrySelect(option)}
-                  >
-                    <CountryFlag code={option.code} />
-                    <span className="flex-1 truncate">{option.name}</span>
-                    <span className="text-muted-foreground text-xs tabular-nums">{option.dial}</span>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
+              {[TOP_COUNTRIES, OTHER_COUNTRIES].map((group, index) => (
+                <React.Fragment key={index}>
+                  {index > 0 ? <CommandSeparator /> : null}
+                  <CommandGroup>
+                    {group.map((option) => (
+                      <CommandItem
+                        key={option.code}
+                        value={`${option.name} ${option.dial}`}
+                        onSelect={() => onCountrySelect(option)}
+                      >
+                        <CountryFlag code={option.code} />
+                        <span className="flex-1 truncate">{option.name}</span>
+                        <span className="text-muted-foreground text-xs tabular-nums">{option.dial}</span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </React.Fragment>
+              ))}
             </CommandList>
           </Command>
         </PopoverContent>

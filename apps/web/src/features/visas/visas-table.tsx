@@ -16,7 +16,7 @@ import { AnimatePresence, motion, Reorder } from 'motion/react';
 import * as React from 'react';
 
 import { DatePicker, EMPTY_DATE_PICKER_VALUE, getMonthValue, type DatePickerValue } from '@/components/date-picker';
-import { SectionHeader, SelectionBar, TableSearch, TableTabs } from '@/components/table-parts';
+import { InversePanel, SectionHeader, SelectionBar, TableSearch, TableTabs } from '@/components/table-parts';
 import { Checkbox } from '@/components/ui/checkbox';
 import { formatDateToString } from '@/lib/data-grid';
 import { exportTableToCsv } from '@/lib/export-csv';
@@ -314,7 +314,9 @@ export function VisasTable() {
               transition={{ duration: 0.2, ease: 'easeOut' }}
               className="overflow-hidden"
             >
-              <VisaForm onCreate={createVisa} onCancel={() => setAdding(false)} />
+              <InversePanel>
+                <VisaForm onCreate={createVisa} onCancel={() => setAdding(false)} />
+              </InversePanel>
             </motion.div>
           ) : null}
         </AnimatePresence>

@@ -88,7 +88,7 @@ function InvoiceAction({ invoice }: { invoice: Invoice }) {
           gooeyToast.success(`${invoice.number} paid`, { description: 'You can print the receipt now.' });
         }}
       />
-      <ReceiptDialog receipt={receipt} onClose={() => setReceipt(null)} />
+      <ReceiptDialog receipt={receipt} onClose={() => setReceipt(null)} printOnOpen />
     </div>
   );
 }
