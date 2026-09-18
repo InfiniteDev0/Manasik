@@ -66,14 +66,14 @@ const GROUP_TRIGGER_CLASS = `${ITEM_CLASS} data-active:bg-transparent data-activ
 const SUB_ITEM_CLASS =
   "h-9 px-3 text-[15px] text-sidebar-foreground/70 hover:text-sidebar-foreground data-active:text-sidebar-foreground data-active:font-medium data-active:bg-white/20 data-active:hover:bg-white/20"
 
-export function NavMain({ items }: { items: NavItem[] }) {
+export function NavMain({ items, className }: { items: NavItem[]; className?: string }) {
   const pathname = usePathname()
   const { state, isMobile } = useSidebar()
   // Collapsed to icons: sub-pages can't show inline, so groups open a flyout.
   const isRail = state === "collapsed" && !isMobile
 
   return (
-    <SidebarGroup>
+    <SidebarGroup className={className}>
       <SidebarMenu className="gap-1 group-data-[collapsible=icon]:items-center">
         {items.map((item) => {
           if (!item.items) {

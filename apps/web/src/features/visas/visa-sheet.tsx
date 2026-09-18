@@ -3,7 +3,7 @@
 import { Trash2Icon } from 'lucide-react';
 import * as React from 'react';
 
-import { MoneyInput } from '@/components/money-input';
+import { CalculatedAmount, MoneyInput } from '@/components/money-input';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -18,13 +18,16 @@ import {
 import { FieldLabel, VisaStatusSelect } from './visa-fields';
 import type { VisaRow } from './visas-data';
 
-type MoneyField = 'net' | 'paid' | 'commission';
+// Typed in: what the client paid and what the visa costs you. The commission
+// isn't — it's what's left, paid − net.
+type MoneyField = 'paid' | 'net';
 
 const MONEY_FIELDS: { name: MoneyField; label: string }[] = [
-  { name: 'net', label: 'Net amount' },
   { name: 'paid', label: 'Paid amount' },
-  { name: 'commission', label: 'Commission' },
+  { name: 'net', label: 'Net amount' },
 ];
+
+const toNumber = (value: string) => (value.trim() === '' ? null : Number(value));
 
 interface VisaEditFormProps {
   visa: VisaRow;
@@ -37,21 +40,22 @@ function VisaEditForm({ visa, onCancel, onSave, onDelete }: VisaEditFormProps) {
   const [draft, setDraft] = React.useState(visa);
   // Amounts are edited as text so a half-typed "12." isn't lost; converted on save.
   const [money, setMoney] = React.useState<Record<MoneyField, string>>({
-    net: visa.net?.toString() ?? '',
     paid: visa.paid?.toString() ?? '',
-    commission: visa.commission?.toString() ?? '',
+    net: visa.net?.toString() ?? '',
   });
+  const paid = toNumber(money.paid);
+  const net = toNumber(money.net);
+  const commission = paid === null || net === null ? null : paid - net;
 
   const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const toNumber = (value: string) => (value.trim() === '' ? null : Number(value));
     onSave({
       ...draft,
       name: draft.name.trim(),
       city: draft.city.trim(),
-      net: toNumber(money.net),
-      paid: toNumber(money.paid),
-      commission: toNumber(money.commission),
+      paid,
+      net,
+      commission,
     });
   };
 
@@ -95,7 +99,7 @@ function VisaEditForm({ visa, onCancel, onSave, onDelete }: VisaEditFormProps) {
           />
         </div>
 
-        {/* All three amounts share the visa's one currency. */}
+        {/* The amounts share the visa's one currency. */}
         {MONEY_FIELDS.map((field) => (
           <div key={field.name} className="col-span-2 space-y-1.5">
             <FieldLabel htmlFor={`visa-${field.name}`}>{field.label}</FieldLabel>
@@ -108,6 +112,11 @@ function VisaEditForm({ visa, onCancel, onSave, onDelete }: VisaEditFormProps) {
             />
           </div>
         ))}
+
+        <div className="col-span-2 space-y-1.5">
+          <FieldLabel htmlFor="visa-commission">Commission</FieldLabel>
+          <CalculatedAmount id="visa-commission" value={commission} currency={draft.currency} formula="Paid − net" />
+        </div>
       </div>
 
       <SheetFooter className="flex-row items-center justify-end border-t">

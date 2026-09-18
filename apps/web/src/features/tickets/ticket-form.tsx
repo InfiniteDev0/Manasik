@@ -5,12 +5,12 @@ import * as React from 'react';
 
 import { AirportPicker } from '@/components/airport-picker';
 import { TripDatePicker } from '@/components/date-picker';
-import { MoneyInput } from '@/components/money-input';
+import { CalculatedAmount, MoneyInput } from '@/components/money-input';
 import { DEFAULT_PHONE_VALUE, hasPhoneNumber, PhoneInput } from '@/components/phone-input';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { formatMoney, type Currency } from '@/lib/currency';
+import type { Currency } from '@/lib/currency';
 
 import { newTicket, type TicketRow } from './tickets-data';
 
@@ -205,15 +205,12 @@ export function TicketForm({ onCreate, onCancel }: TicketFormProps) {
       {/* Not typed — it's whatever is left of the collected money after the airline's net. */}
       <div className="space-y-1.5">
         <FieldLabel htmlFor="new-ticket-commission">Commission</FieldLabel>
-        <output
+        <CalculatedAmount
           id="new-ticket-commission"
-          className="bg-muted/50 text-foreground flex h-9 items-center justify-between rounded-lg border px-2.5 text-sm tabular-nums"
-        >
-          <span className={commission === null ? 'text-muted-foreground' : undefined}>
-            {commission === null ? 'Collected − net' : formatMoney(commission, form.currency)}
-          </span>
-          <span className="text-muted-foreground text-xs">auto</span>
-        </output>
+          value={commission}
+          currency={form.currency}
+          formula="Collected − net"
+        />
       </div>
 
       <div className="space-y-1.5">

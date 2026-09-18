@@ -3,7 +3,7 @@
 import { XIcon } from 'lucide-react';
 import * as React from 'react';
 
-import { MoneyInput } from '@/components/money-input';
+import { CalculatedAmount, MoneyInput } from '@/components/money-input';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { Currency } from '@/lib/currency';
@@ -11,27 +11,29 @@ import type { Currency } from '@/lib/currency';
 import { FieldLabel, VisaStatusSelect } from './visa-fields';
 import { newVisa, type VisaRow, type VisaStatus } from './visas-data';
 
-type MoneyField = 'net' | 'paid' | 'commission';
+// Typed in: what the client paid and what the visa costs you. The commission
+// isn't — it's what's left, paid − net.
+type MoneyField = 'paid' | 'net';
 
 const MONEY_FIELDS: { name: MoneyField; label: string; placeholder: string }[] = [
-  { name: 'net', label: 'Net amount', placeholder: 'What it costs you' },
   { name: 'paid', label: 'Paid amount', placeholder: 'Paid by client' },
-  { name: 'commission', label: 'Commission', placeholder: 'Your cut' },
+  { name: 'net', label: 'Net amount', placeholder: 'What the visa costs you' },
 ];
+
+const toNumber = (value: string) => (value.trim() === '' ? null : Number(value));
 
 interface FormState {
   name: string;
   status: VisaStatus;
   city: string;
   currency: Currency;
-  net: string;
   paid: string;
-  commission: string;
+  net: string;
 }
 
 /** Every field empty. The visa's date is the day it's created. */
 function emptyForm(): FormState {
-  return { name: '', status: 'pending', city: '', currency: 'USD', net: '', paid: '', commission: '' };
+  return { name: '', status: 'pending', city: '', currency: 'USD', paid: '', net: '' };
 }
 
 interface VisaFormProps {
@@ -42,10 +44,12 @@ interface VisaFormProps {
 /** The create-a-visa form that opens above the table. */
 export function VisaForm({ onCreate, onCancel }: VisaFormProps) {
   const [form, setForm] = React.useState(emptyForm);
+  const paid = toNumber(form.paid);
+  const net = toNumber(form.net);
+  const commission = paid === null || net === null ? null : paid - net;
 
   const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const toNumber = (value: string) => (value.trim() === '' ? null : Number(value));
 
     // newVisa() dates it today — that's the visa's created date.
     onCreate({
@@ -54,9 +58,9 @@ export function VisaForm({ onCreate, onCancel }: VisaFormProps) {
       status: form.status,
       city: form.city.trim(),
       currency: form.currency,
-      net: toNumber(form.net),
-      paid: toNumber(form.paid),
-      commission: toNumber(form.commission),
+      paid,
+      net,
+      commission,
     });
     setForm(emptyForm());
   };
@@ -96,7 +100,7 @@ export function VisaForm({ onCreate, onCancel }: VisaFormProps) {
         />
       </div>
 
-      {/* All three amounts share the visa's one currency — changing any changes it. */}
+      {/* The amounts share the visa's one currency — changing either changes it. */}
       {MONEY_FIELDS.map((field) => (
         <div key={field.name} className="space-y-1.5">
           <FieldLabel htmlFor={`new-visa-${field.name}`}>{field.label}</FieldLabel>
@@ -110,6 +114,11 @@ export function VisaForm({ onCreate, onCancel }: VisaFormProps) {
           />
         </div>
       ))}
+
+      <div className="space-y-1.5">
+        <FieldLabel htmlFor="new-visa-commission">Commission</FieldLabel>
+        <CalculatedAmount id="new-visa-commission" value={commission} currency={form.currency} formula="Paid − net" />
+      </div>
 
       <div className="flex items-end">
         <Button type="submit" size="lg" className="w-full">

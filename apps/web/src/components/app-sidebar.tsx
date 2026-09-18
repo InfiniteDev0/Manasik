@@ -12,7 +12,7 @@ import {
   SidebarHeader,
 } from "@/components/ui/sidebar"
 import { useCurrentUser } from "@/features/auth/current-user"
-import { NAV_MAIN } from "@/features/workspace/navigation"
+import { NAV_BOTTOM, NAV_MAIN } from "@/features/workspace/navigation"
 
 // A black sidebar, expanded or collapsed. The sidebar's own colour tokens are
 // re-pointed for this subtree only, so the page around it keeps the light theme
@@ -34,8 +34,8 @@ const BLACK_SIDEBAR_CLASS = [
  * renders it with `variant="inset"` from dashboard-01, so the page sits on a
  * rounded panel.
  *
- * Navigation lives in features/workspace/navigation.ts; Settings sits in the
- * user menu at the bottom.
+ * Navigation lives in features/workspace/navigation.ts; Settings is pinned to
+ * the bottom, just above the user (and is in the user menu too).
  */
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const user = useCurrentUser()
@@ -48,6 +48,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={NAV_MAIN} />
+        {/* mt-auto pushes Settings to the bottom, just above the user. */}
+        <NavMain items={NAV_BOTTOM} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={{ name: user.fullName, email: user.email }} />

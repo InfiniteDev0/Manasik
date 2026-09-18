@@ -6,7 +6,7 @@ import * as React from 'react';
 
 import { AirportPicker } from '@/components/airport-picker';
 import { SingleDatePicker, TripDatePicker } from '@/components/date-picker';
-import { MoneyInput } from '@/components/money-input';
+import { CalculatedAmount, MoneyInput } from '@/components/money-input';
 import { PhoneInput } from '@/components/phone-input';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +19,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
-import { formatMoney } from '@/lib/currency';
 import { formatDateToString } from '@/lib/data-grid';
 
 import type { TicketRow } from './tickets-data';
@@ -199,15 +198,12 @@ function TicketForm({ ticket, isNew, onCancel, onSave, onDelete }: TicketFormPro
 
         <div className="col-span-2 space-y-1.5">
           <Label htmlFor="ticket-commission">Commission</Label>
-          <output
+          <CalculatedAmount
             id="ticket-commission"
-            className="bg-muted/50 text-foreground flex h-9 items-center justify-between rounded-lg border px-2.5 text-sm tabular-nums"
-          >
-            <span className={commission === null ? 'text-muted-foreground' : undefined}>
-              {commission === null ? 'Collected − net' : formatMoney(commission, draft.currency)}
-            </span>
-            <span className="text-muted-foreground text-xs">auto</span>
-          </output>
+            value={commission}
+            currency={draft.currency}
+            formula="Collected − net"
+          />
         </div>
       </div>
 

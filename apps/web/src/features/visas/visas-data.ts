@@ -50,9 +50,9 @@ export function newVisa(): VisaRow {
 // Fixed ids and dates: this module runs on the server and in the browser, and
 // random or clock-based values would differ between the two.
 export const SAMPLE_VISAS: VisaRow[] = [
-  { id: 'visa-1', date: '2026-09-17', name: 'Amina Yusuf', status: 'approved', city: 'Dubai', currency: 'USD', net: 320, paid: 320, commission: 40 },
-  { id: 'visa-2', date: '2026-09-16', name: 'Abdullahi Omar', status: 'submitted', city: 'Jeddah', currency: 'USD', net: 280, paid: 150, commission: 30 },
-  { id: 'visa-3', date: '2026-09-15', name: 'Halima Ali', status: 'pending', city: 'Istanbul', currency: 'KES', net: 27000, paid: 0, commission: 3000 },
+  { id: 'visa-1', date: '2026-09-17', name: 'Amina Yusuf', status: 'approved', city: 'Dubai', currency: 'USD', net: 280, paid: 320, commission: 40 },
+  { id: 'visa-2', date: '2026-09-16', name: 'Abdullahi Omar', status: 'submitted', city: 'Jeddah', currency: 'USD', net: 250, paid: 280, commission: 30 },
+  { id: 'visa-3', date: '2026-09-15', name: 'Halima Ali', status: 'pending', city: 'Istanbul', currency: 'KES', net: 24000, paid: 27000, commission: 3000 },
 ];
 
 export interface VisaCategory {

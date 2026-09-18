@@ -62,7 +62,8 @@ function moneyColumn(id: 'net' | 'paid' | 'commission', label: string): ColumnDe
     header: label,
     meta: { label, cell: { variant: 'number', min: 0, step: 0.01 } },
     cell: ({ row }) => (
-      <span className={cn('tabular-nums', id === 'net' ? 'text-foreground font-medium' : 'text-muted-foreground')}>
+      // The commission — what the agency keeps — stands out.
+      <span className={cn('tabular-nums', id === 'commission' ? 'text-foreground font-medium' : 'text-muted-foreground')}>
         {formatMoney(row.original[id], row.original.currency)}
       </span>
     ),
@@ -118,8 +119,9 @@ const COLUMNS: ColumnDef<VisaRow>[] = [
     meta: { label: 'Currency' },
     enableSorting: false,
   },
-  moneyColumn('net', 'Net amount'),
+  // Paid by the client − net cost of the visa = the commission.
   moneyColumn('paid', 'Paid amount'),
+  moneyColumn('net', 'Net amount'),
   moneyColumn('commission', 'Commission'),
   // The day the visa was created — filled in on its own, so it sits at the end.
   {

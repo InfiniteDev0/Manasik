@@ -40,8 +40,11 @@ export const NAV_MAIN: NavItem[] = [
   },
 ];
 
-/** Lives in the user menu at the bottom of the sidebar, not in NAV_MAIN. */
+/** Also in the user menu at the bottom of the sidebar. */
 export const SETTINGS_LINK: NavLink = { title: 'Settings', href: `${WORKSPACE_PATH}/settings` };
+
+/** Pinned to the bottom of the sidebar, just above the user. */
+export const NAV_BOTTOM: NavItem[] = [{ title: SETTINGS_LINK.title, icon: '/settings.svg', href: SETTINGS_LINK.href }];
 
 /** Dashboard only matches exactly; everything else also matches its sub-pages. */
 export function isActivePath(pathname: string, href: string): boolean {
