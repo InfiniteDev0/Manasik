@@ -84,6 +84,26 @@ export function describeService(service: ServiceType, details: Record<string, st
   return parts.join(' · ');
 }
 
+/**
+ * The service's details one per line, for the quotation document:
+ * "Airline: Qatar Airways", "Route: NBO → JED", "Departure: Sep 24, 2026".
+ */
+export function serviceDetailLines(service: ServiceType, details: Record<string, string>): string[] {
+  const fields = SERVICES.find((option) => option.id === service)?.fields ?? [];
+  const lines: string[] = [];
+  for (const field of fields) {
+    const value = details[field.name]?.trim();
+    if (!value || field.name === 'to') continue;
+    if (field.name === 'from') {
+      const to = details.to?.trim();
+      lines.push(`Route: ${to ? `${value} → ${to}` : value}`);
+    } else {
+      lines.push(`${field.label}: ${field.type === 'date' ? formatDayLabel(value) : value}`);
+    }
+  }
+  return lines;
+}
+
 // ─── Documents ───────────────────────────────────────────────────────────────
 
 /** A price offered for a service. `date` is the day it was made, `yyyy-mm-dd`. */

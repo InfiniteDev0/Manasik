@@ -12,9 +12,11 @@ export const AGENCY = {
   email: 'info@tokiotravel.co.ke',
   website: 'www.tokiotravel.co.ke',
   /** An image in /public for the invoice's top corner; null shows the initials instead. */
-  logo: '/mansiklogoblack.png' as string | null,
+  logo: '/tokiologo.jpg' as string | null,
   /** Shown in front of invoice and receipt totals. */
   currency: 'USD',
+  /** How long a quotation's price holds, printed as its "Valid until" date. */
+  quotationValidDays: 14,
   /** The line in italics near the bottom of a receipt. */
   receiptNote: 'Safe travels — may your journey be blessed.',
   bank: {

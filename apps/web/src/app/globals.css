@@ -249,16 +249,19 @@ p, span{
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
-  /* An invoice is exactly one A4 sheet, edge to edge; a receipt one 80 mm slip. */
-  .invoice-page {
-    page: invoice;
+  /* An invoice or quotation is exactly one A4 sheet, edge to edge; a receipt
+     one 80 mm slip. The sheet is named on the root, not on the document: a
+     named page that only starts at the document forces a new sheet there,
+     leaving a blank first page. */
+  :root:has(.document-page) {
+    page: document;
   }
-  .receipt-page {
+  :root:has(.receipt-page) {
     page: receipt;
   }
 }
 
-@page invoice {
+@page document {
   size: A4;
   margin: 0;
 }

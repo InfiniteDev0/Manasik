@@ -1,0 +1,12 @@
+import { QuotationView } from '@/features/finance/quotation-view';
+
+export default async function Page({ params }: { params: Promise<{ quotationId: string }> }) {
+  const { quotationId } = await params;
+  return (
+    <div className="@container/main flex flex-1 flex-col">
+      <div className="flex flex-col gap-4 px-4 py-4 md:py-6 lg:px-6">
+        <QuotationView quotationId={quotationId} />
+      </div>
+    </div>
+  );
+}

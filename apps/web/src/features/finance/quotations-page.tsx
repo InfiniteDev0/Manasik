@@ -26,6 +26,7 @@ import { ClientCell, DocNumber, ServiceCell, StatusPill } from './finance-parts'
 import { useFinance } from './finance-store';
 import { QuotationForm } from './quotation-form';
 
+const QUOTATIONS_PATH = `${WORKSPACE_PATH}/finance/quotations`;
 const INVOICES_PATH = `${WORKSPACE_PATH}/finance/invoices`;
 
 const TABS = [
@@ -39,31 +40,32 @@ function QuotationAction({ quotation }: { quotation: Quotation }) {
   const { invoiceQuotation } = useFinance();
   const router = useRouter();
 
-  if (quotation.invoiceId) {
-    return (
-      <Button variant="ghost" size="sm" onClick={() => router.push(`${INVOICES_PATH}/${quotation.invoiceId}`)}>
-        View invoice
-        <ArrowRightIcon />
-      </Button>
-    );
-  }
-
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      onClick={() => {
-        const invoice = invoiceQuotation(quotation.id);
-        if (!invoice) return;
-        gooeyToast.success(`Invoice ${invoice.number} created`, {
-          description: `From ${quotation.number} for ${quotation.client}.`,
-          action: { label: 'View', onClick: () => router.push(`${INVOICES_PATH}/${invoice.id}`) },
-        });
-      }}
-    >
-      <FileTextIcon />
-      Create invoice
-    </Button>
+    // Clicking a row opens the quotation; this button does its own thing instead.
+    <div onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
+      {quotation.invoiceId ? (
+        <Button variant="ghost" size="sm" onClick={() => router.push(`${INVOICES_PATH}/${quotation.invoiceId}`)}>
+          View invoice
+          <ArrowRightIcon />
+        </Button>
+      ) : (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            const invoice = invoiceQuotation(quotation.id);
+            if (!invoice) return;
+            gooeyToast.success(`Invoice ${invoice.number} created`, {
+              description: `From ${quotation.number} for ${quotation.client}.`,
+              action: { label: 'View', onClick: () => router.push(`${INVOICES_PATH}/${invoice.id}`) },
+            });
+          }}
+        >
+          <FileTextIcon />
+          Create invoice
+        </Button>
+      )}
+    </div>
   );
 }
 
@@ -136,6 +138,7 @@ export function QuotationsPage() {
   'use no memo';
 
   const { quotations, addQuotation } = useFinance();
+  const router = useRouter();
   const [tabId, setTabId] = React.useState('all');
   const [searchQuery, setSearchQuery] = React.useState('');
   const [dateFilter, setDateFilter] = useMonthDateFilter();
@@ -184,7 +187,7 @@ export function QuotationsPage() {
     <div className="flex flex-col gap-5">
       <SectionHeader
         title="Quotations"
-        description="Price what a customer asks for. When they go ahead, turn the quotation into an invoice."
+        description="Price what a customer asks for — click one to see or print it. When they go ahead, turn it into an invoice."
         onExport={() => exportTableToCsv(table, `quotations-${formatDateToString(new Date())}.csv`)}
         addLabel="New quotation"
         onAdd={() => setAdding((open) => !open)}
@@ -226,7 +229,11 @@ export function QuotationsPage() {
           />
         </SlideDown>
 
-        <DataTable table={table} emptyText={quotations.length === 0 ? 'No quotations yet.' : 'No quotations match.'} />
+        <DataTable
+          table={table}
+          onRowClick={(quotation) => router.push(`${QUOTATIONS_PATH}/${quotation.id}`)}
+          emptyText={quotations.length === 0 ? 'No quotations yet.' : 'No quotations match.'}
+        />
       </div>
     </div>
   );

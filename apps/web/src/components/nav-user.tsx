@@ -66,13 +66,13 @@ export function NavUser({
   const [isSigningOut, startSignOut] = useTransition()
   const { theme, setTheme } = useTheme()
 
-  // A 44px rounded square rather than the small default circle. The photo is a
-  // placeholder (shadcn's avatar); initials on the nav gradient show while it
-  // loads or if it fails.
+  // A 44px rounded square rather than the small default circle, showing the
+  // agency's logo — scaled up a little, since the image has wide white margins.
+  // Initials show while it loads or if it fails.
   const avatar = (
-    <Avatar className="size-11 rounded-xl after:rounded-xl">
-      <AvatarImage src="https://github.com/maxleiter.png" alt="@maxleiter" />
-      <AvatarFallback>LR</AvatarFallback>
+    <Avatar className="size-11 overflow-hidden rounded-xl bg-white after:rounded-xl">
+      <AvatarImage src="/tokiologo.jpg" alt={user.name} className="scale-125 rounded-none" />
+      <AvatarFallback>{initials(user.name)}</AvatarFallback>
     </Avatar>
   );
 
