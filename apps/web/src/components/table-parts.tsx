@@ -92,7 +92,16 @@ export function SlideDown({ open, children }: { open: boolean; children: React.R
 export interface TableTab {
   id: string;
   label: string;
+  /** The tab's colour, shown while it's the open one. Defaults to one from TAB_COLORS. */
+  color?: string;
 }
+
+/**
+ * Like the coloured dividers in a file folder — one per tab, in order. The
+ * order fits how the tabs are laid out: "All" blue, then waiting amber (Pending,
+ * Open, Unpaid), done green (Approved, Invoiced, Paid), refused red, owed orange.
+ */
+const TAB_COLORS = ['#3b82f6', '#f59e0b', '#10b981', '#ef4444', '#f97316', '#ec4899', '#8b5cf6'];
 
 interface TableTabsProps {
   tabs: TableTab[];
@@ -104,15 +113,16 @@ interface TableTabsProps {
 }
 
 /**
- * Folder tabs across the top of a table card — one per category, each with its
- * own rounded outline like the dividers in a file folder. The active tab opens
- * into the card below it.
+ * Rounded folder tabs across the top of a table card — one per category. Only
+ * the open tab is outlined, opening into the card below it, and it takes its
+ * own colour (like a file divider): a coloured top edge and count.
  */
 export function TableTabs({ tabs, value, onValueChange, counts, label }: TableTabsProps) {
   return (
     <div role="tablist" aria-label={label} className="bg-muted/50 flex items-end gap-1 border-b px-2 pt-2">
-      {tabs.map((tab) => {
+      {tabs.map((tab, index) => {
         const active = tab.id === value;
+        const color = tab.color ?? TAB_COLORS[index % TAB_COLORS.length];
         return (
           <button
             key={tab.id}
@@ -120,18 +130,26 @@ export function TableTabs({ tabs, value, onValueChange, counts, label }: TableTa
             role="tab"
             aria-selected={active}
             onClick={() => onValueChange(tab.id)}
+            style={active ? { borderTopColor: color } : undefined}
             className={cn(
-              // -mb-px lays every tab over the strip's bottom border: the active
-              // one's bottom edge is the card colour, so it opens into the card;
-              // the others keep a bottom edge, so the line runs on under them.
+              // -mb-px lays the tab over the strip's bottom border, so the active
+              // one (bottom border in the card colour) joins the card seamlessly.
               'relative -mb-px flex h-10 shrink-0 items-center gap-2 rounded-t-xl border px-4 text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/30',
               active
-                ? 'bg-card text-foreground border-border border-b-card font-medium'
-                : 'bg-muted text-muted-foreground border-border hover:bg-card/70 hover:text-foreground',
+                ? 'bg-card text-foreground border-border border-b-card border-t-[3px] font-medium'
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground border-transparent',
             )}
           >
             {tab.label}
-            <span className="bg-muted text-muted-foreground rounded-md border px-1.5 text-xs leading-5 font-normal tabular-nums">
+            <span
+              style={
+                active ? { backgroundColor: `color-mix(in oklch, ${color} 16%, transparent)`, color } : undefined
+              }
+              className={cn(
+                'rounded-md px-1.5 text-xs leading-5 tabular-nums',
+                active ? 'font-semibold' : 'bg-muted text-muted-foreground border font-normal',
+              )}
+            >
               {counts[tab.id] ?? 0}
             </span>
           </button>
