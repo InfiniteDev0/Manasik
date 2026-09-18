@@ -11,7 +11,7 @@ import {
 } from '@tanstack/react-table';
 import { format, parse } from 'date-fns';
 import { gooeyToast } from 'goey-toast';
-import { ChevronDownIcon, ChevronsUpDownIcon, ChevronUpIcon } from 'lucide-react';
+import { ChevronDownIcon, ChevronsUpDownIcon, ChevronUpIcon, UserRoundIcon } from 'lucide-react';
 import { AnimatePresence, motion, Reorder } from 'motion/react';
 import * as React from 'react';
 
@@ -166,10 +166,18 @@ const COLUMNS: ColumnDef<TicketRow>[] = [
     meta: { label: 'PNR', cell: { variant: 'short-text' } },
     enableSorting: false,
     cell: ({ row }) => (
-      <TwoLineCell
-        primary={<span className="font-mono tracking-wide uppercase">{row.original.pnr || '—'}</span>}
-        secondary={row.original.reference ? `Ref: ${row.original.reference}` : 'No ref'}
-      />
+      <div className="flex min-w-0 flex-col items-start gap-1">
+        <span className="text-foreground font-mono font-medium tracking-wide uppercase">{row.original.pnr || '—'}</span>
+        {/* Who referred the client, as a badge so it stands out. */}
+        {row.original.reference ? (
+          <span className="bg-vivid-cyan/10 text-vivid-cyan inline-flex h-5 max-w-full items-center gap-1 rounded-full px-2 text-xs font-medium">
+            <UserRoundIcon className="size-3 shrink-0" />
+            <span className="truncate">{row.original.reference}</span>
+          </span>
+        ) : (
+          <span className="text-muted-foreground text-xs">No ref</span>
+        )}
+      </div>
     ),
   },
   hiddenColumn('reference', 'Ref'),
