@@ -4,6 +4,7 @@ import {
   endOfMonth,
   endOfWeek,
   format,
+  parse,
   startOfMonth,
   startOfWeek,
   subDays,
@@ -47,6 +48,27 @@ export function matchesDateRange(value: string, picked: DatePickerValue): boolea
 /** The whole month `date` falls in, from the 1st to its last day. */
 export function getMonthValue(date: Date): DatePickerValue {
   return { mode: 'range', value: { from: startOfMonth(date), to: endOfMonth(date) } };
+}
+
+// The viewer's month as "yyyy-MM". The server doesn't know the viewer's
+// timezone, so it renders without one (null) and the browser fills it in on
+// hydration — otherwise the two could disagree on the last day of a month.
+const subscribeNever = () => () => {};
+const getCurrentMonth = () => format(new Date(), 'yyyy-MM');
+const getNoMonth = () => null;
+
+/**
+ * A table's date filter: the viewer's current month until something else is
+ * picked (or cleared).
+ */
+export function useMonthDateFilter(): [DatePickerValue, (value: DatePickerValue) => void] {
+  const [picked, setPicked] = React.useState<DatePickerValue | null>(null);
+  const currentMonth = React.useSyncExternalStore(subscribeNever, getCurrentMonth, getNoMonth);
+  const thisMonth = React.useMemo(
+    () => (currentMonth ? getMonthValue(parse(currentMonth, 'yyyy-MM', new Date())) : EMPTY_DATE_PICKER_VALUE),
+    [currentMonth],
+  );
+  return [picked ?? thisMonth, setPicked];
 }
 
 const PRESETS: { label: string; getValue: () => DatePickerValue }[] = [

@@ -218,3 +218,52 @@ p, span{
 .scrollbar-pill::-webkit-scrollbar-thumb:hover {
   background: #71717a; /* zinc-500 color */
 }
+
+/* Printing an invoice or a receipt: only the .print-area is printed. Everything
+   that neither is it nor holds it is dropped (sidebar, header, buttons, the
+   dialog's backdrop), and the boxes around it (page layout, dialog) lose their
+   own padding and position, so the print area starts at the top of page one. */
+@media print {
+  body *:not(:has(.print-area)):not(.print-area):not(.print-area *) {
+    display: none !important;
+  }
+  *:has(.print-area) {
+    display: block !important;
+    position: static !important;
+    inset: auto !important;
+    transform: none !important;
+    width: auto !important;
+    max-width: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: none !important;
+    overflow: visible !important;
+  }
+  .print-area {
+    /* Keep the invoice's colours and background plane on paper. */
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  /* An invoice is exactly one A4 sheet, edge to edge; a receipt one 80 mm slip. */
+  .invoice-page {
+    page: invoice;
+  }
+  .receipt-page {
+    page: receipt;
+  }
+}
+
+@page invoice {
+  size: A4;
+  margin: 0;
+}
+
+@page receipt {
+  size: 80mm 142mm;
+  margin: 0;
+}

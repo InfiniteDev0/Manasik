@@ -1,4 +1,11 @@
-// Blank on purpose — this page is being designed from scratch.
-export default function ExpensesPage() {
-  return null;
+import { ExpensesPage } from '@/features/finance/expenses-page';
+
+export default function Page() {
+  return (
+    <div className="@container/main flex flex-1 flex-col">
+      <div className="flex flex-col gap-4 px-4 py-4 md:py-6 lg:px-6">
+        <ExpensesPage />
+      </div>
+    </div>
+  );
 }

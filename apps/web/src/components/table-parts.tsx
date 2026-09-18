@@ -1,6 +1,7 @@
 'use client';
 
 import { CornerDownRightIcon, DownloadIcon, PencilIcon, PlusIcon, SearchIcon, Trash2Icon, XIcon } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 import type * as React from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -15,14 +16,15 @@ import { cn } from '@/lib/utils';
 interface SectionHeaderProps {
   title: string;
   description: string;
-  addLabel: string;
   onExport: () => void;
-  onAdd: () => void;
+  /** Leave out for tables whose rows come from somewhere else (invoices, receipts). */
+  addLabel?: string;
+  onAdd?: () => void;
   /** Whether the add panel above the table is open. */
-  adding: boolean;
+  adding?: boolean;
 }
 
-export function SectionHeader({ title, description, addLabel, onExport, onAdd, adding }: SectionHeaderProps) {
+export function SectionHeader({ title, description, onExport, addLabel, onAdd, adding }: SectionHeaderProps) {
   return (
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div>
@@ -35,12 +37,35 @@ export function SectionHeader({ title, description, addLabel, onExport, onAdd, a
           <DownloadIcon />
           Export
         </Button>
-        <Button size="lg" onClick={onAdd} aria-expanded={adding}>
-          <PlusIcon />
-          {addLabel}
-        </Button>
+        {onAdd ? (
+          <Button size="lg" onClick={onAdd} aria-expanded={adding}>
+            <PlusIcon />
+            {addLabel}
+          </Button>
+        ) : null}
       </div>
     </div>
+  );
+}
+
+// ─── Slide-down panel ────────────────────────────────────────────────────────
+
+/** Opens and closes by sliding, pushing whatever is below it down (the add form, the selection bar). */
+export function SlideDown({ open, children }: { open: boolean; children: React.ReactNode }) {
+  return (
+    <AnimatePresence initial={false}>
+      {open ? (
+        <motion.div
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
+          className="overflow-hidden"
+        >
+          {children}
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
   );
 }
 
@@ -171,7 +196,8 @@ interface SelectionBarProps {
   /** Only offered when exactly one row is selected. */
   onEdit?: () => void;
   onExport: () => void;
-  onDelete: () => void;
+  /** Leave out where rows mustn't be deleted (invoices, receipts). */
+  onDelete?: () => void;
   onClear: () => void;
 }
 
@@ -193,13 +219,15 @@ export function SelectionBar({ count, onEdit, onExport, onDelete, onClear }: Sel
       <SelectionAction label="Export selected" onClick={onExport}>
         <DownloadIcon />
       </SelectionAction>
-      <SelectionAction
-        label="Delete selected"
-        onClick={onDelete}
-        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-      >
-        <Trash2Icon />
-      </SelectionAction>
+      {onDelete ? (
+        <SelectionAction
+          label="Delete selected"
+          onClick={onDelete}
+          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+        >
+          <Trash2Icon />
+        </SelectionAction>
+      ) : null}
       <SelectionAction label="Clear selection" onClick={onClear}>
         <XIcon />
       </SelectionAction>
