@@ -39,7 +39,7 @@ interface VisaStatusSelectProps {
 export function VisaStatusSelect({ id, value, onValueChange, className }: VisaStatusSelectProps) {
   return (
     <Select value={value} onValueChange={(next: string | null) => next && onValueChange(next as VisaStatus)}>
-      <SelectTrigger id={id} className={cn('h-9 w-full', className)}>
+      <SelectTrigger id={id} className={cn('data-[size=default]:h-9 w-full', className)}>
         <SelectValue>{visaStatusLabel(value)}</SelectValue>
       </SelectTrigger>
       <SelectContent>

@@ -99,7 +99,7 @@ export function ExpenseForm({ onCreate, onCancel }: ExpenseFormProps) {
           value={form.category}
           onValueChange={(next: string | null) => next && set('category', next as ExpenseCategory)}
         >
-          <SelectTrigger id="new-expense-category" className="h-9 w-full">
+          <SelectTrigger id="new-expense-category" className="data-[size=default]:h-9 w-full">
             <SelectValue>{expenseCategoryLabel(form.category)}</SelectValue>
           </SelectTrigger>
           <SelectContent>
@@ -142,7 +142,7 @@ export function ExpenseForm({ onCreate, onCancel }: ExpenseFormProps) {
           value={form.method}
           onValueChange={(next: string | null) => next && set('method', next as PaymentMethod)}
         >
-          <SelectTrigger id="new-expense-method" className="h-9 w-full">
+          <SelectTrigger id="new-expense-method" className="data-[size=default]:h-9 w-full">
             <SelectValue>{paymentMethodLabel(form.method)}</SelectValue>
           </SelectTrigger>
           <SelectContent>

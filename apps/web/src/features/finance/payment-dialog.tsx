@@ -43,7 +43,7 @@ export function PaymentDialog({ open, invoice, onOpenChange, onConfirm }: Paymen
             Paid by
           </Label>
           <Select value={method} onValueChange={(next: string | null) => next && setMethod(next as PaymentMethod)}>
-            <SelectTrigger id={`payment-method-${invoice.id}`} className="h-9 w-full">
+            <SelectTrigger id={`payment-method-${invoice.id}`} className="data-[size=default]:h-9 w-full">
               <SelectValue>{paymentMethodLabel(method)}</SelectValue>
             </SelectTrigger>
             <SelectContent>

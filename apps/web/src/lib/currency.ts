@@ -12,14 +12,17 @@ export function currencyLabel(currency: Currency): string {
   return CURRENCIES.find((option) => option.id === currency)?.label ?? currency;
 }
 
-/** 780 in USD → "USD 780.00"; 78000 in KES → "KSh 78,000.00"; nothing → "—". */
+/**
+ * The amount, then its currency — the way the amount fields read:
+ * 780 in USD → "780.00 USD"; 78000 in KES → "78,000.00 KSh"; nothing → "—".
+ */
 export function formatMoney(value: number | null, currency: Currency): string {
-  return value === null ? '—' : `${currencyLabel(currency)} ${formatAmount(value)}`;
+  return value === null ? '—' : `${formatAmount(value)} ${currencyLabel(currency)}`;
 }
 
 /**
  * Adds amounts up per currency — USD and KSh never mix:
- * "USD 1,200.00 · KSh 12,000.00". Nothing to add → "—".
+ * "1,200.00 USD · 12,000.00 KSh". Nothing to add → "—".
  */
 export function formatTotals(items: { amount: number | null; currency: Currency }[]): string {
   const totals = new Map<Currency, number>();

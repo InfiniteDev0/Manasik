@@ -145,7 +145,7 @@ export function QuotationForm({ onCreate, onCancel }: QuotationFormProps) {
           value={service}
           onValueChange={(next: string | null) => next && setService(next as ServiceType)}
         >
-          <SelectTrigger id="new-quotation-service" className="h-9 w-full">
+          <SelectTrigger id="new-quotation-service" className="data-[size=default]:h-9 w-full">
             <SelectValue>{serviceLabel(service)}</SelectValue>
           </SelectTrigger>
           <SelectContent>

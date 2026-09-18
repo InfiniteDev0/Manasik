@@ -2,7 +2,8 @@
 
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CURRENCIES, currencyLabel, formatMoney, type Currency } from '@/lib/currency';
+import { CURRENCIES, currencyLabel, type Currency } from '@/lib/currency';
+import { formatAmount } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 interface CalculatedAmountProps {
@@ -14,17 +15,21 @@ interface CalculatedAmountProps {
   formula: string;
 }
 
-/** An amount that isn't typed — worked out from the others, like a commission. */
+/**
+ * An amount that isn't typed — worked out from the others, like a commission.
+ * Laid out like the amount fields above it: the number on the left, its
+ * currency on the right.
+ */
 export function CalculatedAmount({ id, value, currency, formula }: CalculatedAmountProps) {
   return (
     <output
       id={id}
-      className="bg-muted/50 text-foreground flex h-9 items-center justify-between rounded-lg border px-2.5 text-sm tabular-nums"
+      className="bg-muted/50 text-foreground flex h-9 items-center justify-between gap-2 rounded-lg border px-2.5 text-sm tabular-nums"
     >
-      <span className={value === null ? 'text-muted-foreground' : undefined}>
-        {value === null ? formula : formatMoney(value, currency)}
+      <span className={cn('truncate', value === null && 'text-muted-foreground')}>
+        {value === null ? formula : formatAmount(value)}
       </span>
-      <span className="text-muted-foreground text-xs">auto</span>
+      <span className="text-muted-foreground shrink-0">{currencyLabel(currency)}</span>
     </output>
   );
 }
@@ -67,7 +72,7 @@ export function MoneyInput({
         className="h-9 min-w-0 flex-1 rounded-e-none border-e-0 tabular-nums focus-visible:z-1"
       />
       <Select value={currency} onValueChange={(next: string | null) => next && onCurrencyChange(next as Currency)}>
-        <SelectTrigger aria-label="Currency" className="h-9 shrink-0 rounded-s-none focus-visible:z-1">
+        <SelectTrigger aria-label="Currency" className="data-[size=default]:h-9 shrink-0 rounded-s-none focus-visible:z-1">
           <SelectValue>{currencyLabel(currency)}</SelectValue>
         </SelectTrigger>
         <SelectContent align="end">
